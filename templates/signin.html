@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Sign In | PlasmoBlood Sync{% endblock %}
+{% block content %}
+<div class="bg-gray-800 p-8 rounded shadow-lg space-y-6 w-full max-w-md mx-auto mt-10">
+  <h2 class="text-2xl font-bold text-center text-red-400">Sign In</h2>
+
+  <!-- Role dropdown -->
+  <div>
+    <label for="role" class="block text-gray-300 mb-2">Sign in as</label>
+    <select id="role" name="role" class="w-full p-2 rounded bg-gray-700 text-white">
+      <option value="donor">Donor</option>
+      <option value="admin">Admin (restricted)</option>
+    </select>
+    <p class="text-xs text-gray-400 mt-1">
+      ⚠️ Only predefined admin emails can sign in as Admin.
+    </p>
+  </div>
+
+  <!-- Google OAuth button -->
+  <div class="mt-4">
+    <a id="googleLoginBtn"
+       href="#"
+       class="w-full bg-blue-500 hover:bg-blue-600 py-2 rounded block text-center text-white">
+       Continue with Google
+    </a>
+  </div>
+
+  <p class="text-center text-sm mt-4">
+    Don't have an account? 
+    <a href="{{ url_for('signup') }}" class="text-red-400 hover:underline">Sign Up</a>
+  </p>
+</div>
+
+<script>
+  document.getElementById("googleLoginBtn").addEventListener("click", function(e) {
+    e.preventDefault();
+    const role = document.getElementById("role").value;
+    // Redirect to Google login with role as query param
+    window.location.href = "{{ url_for('google_login') }}" + "?role=" + role;
+  });
+</script>
+{% endblock %}

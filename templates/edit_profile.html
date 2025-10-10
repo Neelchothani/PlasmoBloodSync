@@ -1,0 +1,39 @@
+<!-- templates/edit_profile.html -->
+{% extends "base.html" %}
+{% block title %}Edit Profile - PlasmoBlood Sync{% endblock %}
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="max-w-xl mx-auto mt-6 space-y-3">
+      {% for category, message in messages %}
+        <div class="px-4 py-3 rounded-lg {{ 'bg-green-100 text-green-800' if category=='success' else 'bg-red-100 text-red-800' }}">
+          {{ message }}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+{% block content %}
+<div class="max-w-xl mx-auto bg-white dark:bg-lightDark shadow-md rounded-xl p-6 mt-10">
+  <h2 class="text-2xl font-bold mb-4 text-primary dark:text-white">✏️ Edit Profile</h2>
+  <form method="POST">
+    <div class="mb-4">
+      <label class="block text-sm font-semibold mb-1" for="username">Username</label>
+      <input class="w-full px-4 py-2 border rounded-lg bg-gray-100 dark:bg-gray-800 dark:text-white" type="text" id="username" name="username" value="{{ user.username }}" required>
+    </div>
+    <div class="mb-4">
+      <label class="block text-sm font-semibold mb-1" for="password">New Password</label>
+      <input class="w-full px-4 py-2 border rounded-lg bg-gray-100 dark:bg-gray-800 dark:text-white" type="password" id="password" name="password">
+    </div>
+    <div class="mb-6">
+      <label class="block text-sm font-semibold mb-1" for="role">Role</label>
+      <select class="w-full px-4 py-2 border rounded-lg bg-gray-100 dark:bg-gray-800 dark:text-white" name="role" id="role">
+        <option value="user" {% if user.role == 'user' %}selected{% endif %}>User</option>
+        <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>Admin</option>
+      </select>
+    </div>
+    <div class="flex justify-end">
+      <button type="submit" class="px-6 py-2 bg-primary text-white rounded-lg hover:bg-red-600 transition">Save Changes</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

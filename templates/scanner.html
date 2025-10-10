@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Blood Request Scanner</title>
+<style>
+body { 
+    text-align: center; 
+    font-family: sans-serif; 
+    background: #f0f0f0; 
+    color: #000; /* Black text */
+}
+#radar { 
+    width: 300px; 
+    height: 300px; 
+    border-radius: 50%; 
+    margin: 50px auto; 
+    border: 5px solid #00bfff; 
+    position: relative; 
+    overflow: hidden; 
+}
+.pulse { 
+    width: 100%; 
+    height: 100%; 
+    border-radius: 50%; 
+    background: rgba(0,191,255,0.2); 
+    position: absolute; 
+    top: 0; 
+    left: 0; 
+    animation: pulse 2s infinite; 
+}
+@keyframes pulse { 
+    0% {transform: scale(0.5); opacity: 0.7} 
+    50% {transform: scale(1); opacity: 0.3} 
+    100% {transform: scale(0.5); opacity: 0.7} 
+}
+#donorInfo { 
+    margin-top: 20px; 
+    font-size: 18px; 
+    color: #000; /* Black text */
+}
+#donorInfo h3 { color: #000; }
+#donorInfo p { color: #000; }
+</style>
+</head>
+<body>
+<h2>Searching for Donors...</h2>
+<div id="radar"><div class="pulse"></div></div>
+<audio id="alertSound" src="https://www.soundjay.com/buttons/beep-07.mp3"></audio>
+<div id="donorInfo"></div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<script>
+const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT.firebaseapp.com",
+    projectId: "YOUR_PROJECT",
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+const requestId = "{{ request_id }}";  // passed from Flask
+const donorInfoDiv = document.getElementById("donorInfo");
+const alertSound = document.getElementById("alertSound");
+
+const acceptedDonor = {{ accepted_donor | default({}) | tojson }};
+const requestedGroup = "{{ request.blood_group }}"; // Requested group from Flask
+
+// Function to show donor info and play sound
+function showDonorInfo(donor) {
+    donorInfoDiv.innerHTML = `
+        <h3>Donor Found!</h3>
+        <p>Name: ${donor.name}</p>
+        <p>Blood/Plasma Group Needed: ${requestedGroup}</p>
+    `;
+    alertSound.play();
+    document.body.style.background = "#d4edda";
+    document.querySelector("#radar .pulse").style.background = "rgba(0,200,0,0.4)";
+}
+
+// If donor already exists, show info immediately
+if (acceptedDonor && Object.keys(acceptedDonor).length > 0) {
+    showDonorInfo(acceptedDonor);
+
+    // Send confirmation email after 5 seconds
+    setTimeout(() => {
+        fetch(`/send_confirmation_email/${requestId}`, { method: "POST" })
+        .then(() => {
+            setTimeout(() => { window.location.href = "{{ url_for('admin_home') }}"; }, 1000);
+        });
+    }, 5000);
+}
+
+// Real-time Firestore listener for updates
+db.collection("blood_requests").doc(requestId)
+  .onSnapshot(doc => {
+      const data = doc.data();
+      if(data && data.status === "accepted" && data.accepted_donor){
+          showDonorInfo(data.accepted_donor);
+
+          setTimeout(() => {
+              fetch(`/send_confirmation_email/${requestId}`, { method: "POST" })
+              .then(() => {
+                  setTimeout(() => { window.location.href = "{{ url_for('admin_home') }}"; }, 1000);
+              });
+          }, 5000);
+      }
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Nearby Blood Requests</title>
+</head>
+<body>
+<h2>Nearby Blood Requests</h2>
+<ul>
+{% for req in requests %}
+    <li>
+        <strong>{{ req.patient_name }}</strong> needs {{ req.blood_type }} blood ({{ req.distance }} km away)
+        <button onclick="acceptRequest('{{ req.id }}')">Accept</button>
+    </li>
+{% else %}
+    <li>No requests nearby right now.</li>
+{% endfor %}
+</ul>
+
+<script>
+async function acceptRequest(requestId){
+    const res = await fetch(`/accept-request/${requestId}`, {method:"POST"});
+    const data = await res.json();
+    if(data.success){
+        alert("You accepted the request!");
+        location.reload();
+    } else {
+        alert("Error: " + data.error);
+    }
+}
+</script>
+</body>
+</html>

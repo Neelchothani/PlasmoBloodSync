@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}Request Blood | PlasmoBlood Sync{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-center min-h-[75vh] px-4 font-[Poppins,sans-serif]">
+  <div class="w-full max-w-xl bg-card p-8 rounded-2xl shadow-xl border border-slate-700">
+    <h2 class="text-2xl font-extrabold text-center text-white mb-6 tracking-wide">🩸 Request Blood</h2>
+
+    <!-- Single AJAX Form -->
+    <form id="bloodRequestForm" class="space-y-5 text-sm">
+      <div>
+        <label for="patient_name" class="block mb-1 text-slate-300">Full Name</label>
+        <input type="text" id="patient_name" name="patient_name" placeholder="John Doe" required
+          class="w-full px-4 py-2 rounded-lg bg-slate-800 text-white border border-slate-600 focus:ring-2 focus:ring-red-400 outline-none transition" />
+      </div>
+
+      <div>
+        <label for="email" class="block mb-1 text-slate-300">Email</label>
+        <input type="email" id="email" name="email" placeholder="john@example.com" required
+          class="w-full px-4 py-2 rounded-lg bg-slate-800 text-white border border-slate-600 focus:ring-2 focus:ring-red-400 outline-none transition" />
+      </div>
+
+      <div>
+        <label for="phone" class="block mb-1 text-slate-300">Phone</label>
+        <input type="tel" id="phone" name="phone" placeholder="9876543210" required
+          class="w-full px-4 py-2 rounded-lg bg-slate-800 text-white border border-slate-600 focus:ring-2 focus:ring-red-400 outline-none transition" />
+      </div>
+
+      <div>
+        <label for="blood_group" class="block mb-1 text-slate-300">Blood Type</label>
+        <select id="blood_group" name="blood_group" required
+          class="w-full px-4 py-2 rounded-lg bg-slate-800 text-white border border-slate-600 focus:ring-2 focus:ring-red-400 outline-none transition">
+          <option value="" disabled selected>Select Required Blood Type</option>
+          <option>A+</option>
+          <option>A-</option>
+          <option>B+</option>
+          <option>B-</option>
+          <option>O+</option>
+          <option>O-</option>
+          <option>AB+</option>
+          <option>AB-</option>
+        </select>
+      </div>
+
+      <!-- Hidden fields for lat/lng -->
+      <input type="hidden" name="lat" id="lat">
+      <input type="hidden" name="lng" id="lng">
+
+      <div class="pt-2 text-center">
+        <button type="submit"
+          class="inline-block px-6 py-2 font-semibold bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-400 hover:to-yellow-500 text-white rounded-full shadow-md transition transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-yellow-400/50">
+          🚑 Submit Request
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  // Get user location
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(function (position) {
+      document.getElementById('lat').value = position.coords.latitude;
+      document.getElementById('lng').value = position.coords.longitude;
+    });
+  }
+
+  // AJAX form submission
+  document.getElementById('bloodRequestForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+
+    const formData = {
+      patient_name: this.patient_name.value,
+      email: this.email.value,
+      phone: this.phone.value,
+      blood_group: this.blood_group.value,
+      lat: this.lat.value,
+      lng: this.lng.value
+    };
+
+    fetch('{{ url_for("submit_request") }}', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(formData)
+    })
+      .then(response => response.json())
+      .then(data => {
+        if (data.status === "success" && data.redirect_url) {
+          // Redirect to scanner page using redirect_url from Flask
+          window.location.href = data.redirect_url;
+        } else {
+          alert(data.message);
+        }
+      })
+      .catch(err => alert('Error: ' + err));
+  });
+
+  // 🧠 Dynamic dropdown update when switching between Blood / Plasma
+  document.addEventListener('DOMContentLoaded', () => {
+    const bloodGroupSelect = document.getElementById('blood_group');
+
+    const bloodGroups = ["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"];
+    const plasmaGroups = ["A", "B", "AB", "O"];
+
+    function updateDropdown(type) {
+      bloodGroupSelect.innerHTML = `<option value="" disabled selected>Select Required ${type} Type</option>`;
+      const groups = type === "Plasma" ? plasmaGroups : bloodGroups;
+      groups.forEach(group => {
+        const option = document.createElement("option");
+        option.textContent = group;
+        option.value = group;
+        bloodGroupSelect.appendChild(option);
+      });
+    }
+
+    // Detect initial donation type from localStorage
+    const savedType = localStorage.getItem("donationType") || "Blood";
+    updateDropdown(savedType);
+
+    // Listen for toggle change
+    const toggleBlood = document.getElementById("toggleBlood");
+    const togglePlasma = document.getElementById("togglePlasma");
+
+    toggleBlood?.addEventListener("click", () => updateDropdown("Blood"));
+    togglePlasma?.addEventListener("click", () => updateDropdown("Plasma"));
+  });
+</script>
+
+{% endblock %}

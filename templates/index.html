@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Home | PlasmoBlood Sync{% endblock %}
+
+{% block content %}
+{% if not session.get('email') %}
+<!-- Hero Section -->
+<div class="max-w-4xl mx-auto text-center bg-gradient-to-b from-white via-gray-100 to-gray-200 dark:from-black dark:via-gray-900 dark:to-dark px-8 py-12 rounded-xl shadow-lg">
+  <h1 class="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-teal-500 to-blue-600 dark:from-teal-300 dark:to-blue-500 flex items-center justify-center gap-3">
+    <i data-lucide="syringe" class="w-8 h-8 text-teal-500 dark:text-teal-300"></i>
+    Donate <span id="donationTypeText">Blood</span>, Save Lives
+  </h1>
+  <p class="mt-6 text-lg font-medium text-gray-800 dark:text-gray-300 max-w-2xl mx-auto">
+    Just one donation can save up to three lives. Your small effort could mean a second chance for someone.
+  </p>
+  <a href="/signup">
+    <button class="mt-8 px-6 py-3 bg-gradient-to-r from-pink-500 to-red-500 text-white font-semibold rounded-full shadow hover:brightness-110 transition">
+      Become a Donor 🚑
+    </button>
+  </a>
+</div>
+
+<!-- Donor Cards -->
+<div class="max-w-6xl mx-auto px-4 mt-16">
+  <h2 class="text-center text-2xl font-bold text-gray-900 dark:text-gray-200 mb-8">Our Life Savers</h2>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+    <div class="bg-gray-100 dark:bg-card p-6 rounded-xl text-center shadow-lg text-black dark:text-white">
+      <img src="https://via.placeholder.com/100" class="w-24 h-24 mx-auto rounded-full mb-4 border-4 border-accent" />
+      <h3 class="text-lg font-semibold">Riya Sharma</h3>
+      <p class="text-sm text-muted dark:text-gray-400">Donated O+ blood — Saved 3 lives</p>
+    </div>
+    <div class="bg-gray-100 dark:bg-card p-6 rounded-xl text-center shadow-lg text-black dark:text-white">
+      <img src="https://via.placeholder.com/100" class="w-24 h-24 mx-auto rounded-full mb-4 border-4 border-accent" />
+      <h3 class="text-lg font-semibold">Amit Verma</h3>
+      <p class="text-sm text-muted dark:text-gray-400">Donated Plasma — Helped COVID patients</p>
+    </div>
+    <div class="bg-gray-100 dark:bg-card p-6 rounded-xl text-center shadow-lg text-black dark:text-white">
+      <img src="https://via.placeholder.com/100" class="w-24 h-24 mx-auto rounded-full mb-4 border-4 border-accent" />
+      <h3 class="text-lg font-semibold">Fatima Khan</h3>
+      <p class="text-sm text-muted dark:text-gray-400">Rare AB- donor — Critical case support</p>
+    </div>
+  </div>
+</div>
+{% else %}
+<!-- Signed in: Welcome message or quick actions -->
+
+{% endif %}
+{% endblock %}

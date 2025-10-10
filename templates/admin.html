@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+{% block title %}Admin Panel | PlasmoBlood Sync{% endblock %}
+{% block content %}
+
+<div class="max-w-7xl mx-auto px-4 py-6 overflow-auto space-y-12" id="adminContent">
+
+  <!-- Stats Cards -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
+    <div class="bg-gradient-to-br from-red-500 to-red-600 p-6 rounded-2xl shadow-lg text-white">
+      <p class="text-lg font-semibold">Total Donors</p>
+      <h3 class="text-4xl font-bold mt-2">{{ stats.total_donors }}</h3>
+    </div>
+    <div class="bg-gradient-to-br from-blue-500 to-blue-600 p-6 rounded-2xl shadow-lg text-white">
+      <p class="text-lg font-semibold">Total Requests</p>
+      <h3 class="text-4xl font-bold mt-2">{{ stats.total_requests }}</h3>
+    </div>
+    <div class="bg-gradient-to-br from-yellow-500 to-yellow-600 p-6 rounded-2xl shadow-lg text-white">
+      <p class="text-lg font-semibold">Urgent A+ Requests</p>
+      <h3 class="text-4xl font-bold mt-2">{{ stats.urgent_requests }}</h3>
+    </div>
+  </div>
+
+  <!-- Accepted Donors -->
+  <div class="space-y-4 mt-10">
+    <h2 class="text-2xl font-bold text-green-400 flex items-center gap-2">
+      <i data-lucide="user-check" class="w-6 h-6"></i> Accepted Donors
+    </h2>
+    <div class="overflow-x-auto rounded-xl shadow border border-gray-700">
+      <table class="w-full table-auto text-left text-sm bg-slate-800 text-white">
+        <thead class="bg-slate-700 text-gray-200 uppercase">
+          <tr>
+            <th class="py-3 px-4">Donor Name</th>
+            <th class="py-3 px-4">Blood Group</th>
+            <th class="py-3 px-4">Patient</th>
+          </tr>
+        </thead>
+        <tbody id="acceptedTableBody">
+          {% for donor in accepted_donors %}
+          <tr class="border-t border-slate-700 hover:bg-slate-700/40 {% if donor not in latest_accepted %}hidden-row{% endif %}">
+            <td class="py-3 px-4">{{ donor.name }}</td>
+            <td class="py-3 px-4">{{ donor.blood_group }}</td>
+            <td class="py-3 px-4">{{ donor.patient_name }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Search Field -->
+  <div>
+    <input
+      type="text"
+      id="requestSearch"
+      placeholder="🔍 Search by name, blood type, or location..."
+      class="w-full md:w-1/2 p-4 rounded-xl bg-slate-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-400 shadow-inner"
+      onkeyup="filterRows()"
+      onkeypress="checkEnter(event)"
+    />
+  </div>
+
+  <!-- Incoming Requests Table -->
+  <div class="space-y-4 mt-6">
+    <h2 class="text-2xl font-bold text-yellow-400 flex items-center gap-2">
+      <i data-lucide="inbox" class="w-6 h-6"></i> Incoming Blood Requests
+    </h2>
+    <div class="overflow-x-auto rounded-xl shadow border border-gray-700">
+      <table class="w-full table-auto text-left text-sm bg-slate-800 text-white">
+        <thead class="bg-slate-700 text-gray-200 uppercase">
+          <tr>
+            <th class="py-3 px-4">Patient</th>
+            <th class="py-3 px-4">Blood Type</th>
+            <th class="py-3 px-4">Date</th>
+            <th class="py-3 px-4">Status</th>
+          </tr>
+        </thead>
+        <tbody id="requestsTableBody">
+          {% for req in requests %}
+          <tr class="border-t border-slate-700 hover:bg-slate-700/40 {% if req not in latest_requests %}hidden-row{% endif %}">
+            <td class="py-3 px-4">{{ req.patient_name }}</td>
+            <td class="py-3 px-4">{{ req.blood_group }}</td>
+            <td class="py-3 px-4">{{ req.created_at_str }}</td>
+            <td class="py-3 px-4">{{ req.status }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Chart Section -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-10 mt-6">
+    <div class="bg-white dark:bg-slate-900 p-6 rounded-xl shadow h-[300px]">
+      <h3 class="text-lg font-semibold text-slate-800 dark:text-white mb-4">🩸 Requests by Type</h3>
+      <div class="h-[240px]">
+        <canvas id="bloodChart"></canvas>
+      </div>
+    </div>
+    <div class="bg-white dark:bg-slate-900 p-6 rounded-xl shadow h-[300px]">
+      <h3 class="text-lg font-semibold text-slate-800 dark:text-white mb-4">📈 Requests by Day (This Week)</h3>
+      <div class="h-[240px]">
+        <canvas id="dailyChart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  // Blood type chart
+  const bloodCtx = document.getElementById('bloodChart').getContext('2d');
+  new Chart(bloodCtx, {
+    type: 'bar',
+    data: {
+      labels: {{ blood_counts.keys() | list | safe }},
+      datasets: [{
+        label: 'Requests',
+        data: {{ blood_counts.values() | list | safe }},
+        backgroundColor: 'rgba(255, 99, 132, 0.6)'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+    }
+  });
+
+  // Daily requests chart
+  const dailyCtx = document.getElementById('dailyChart').getContext('2d');
+  new Chart(dailyCtx, {
+    type: 'line',
+    data: {
+      labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+      datasets: [{
+        label: 'Requests per Day',
+        data: [
+          {{ daily_counts.get('Mon', 0) }},
+          {{ daily_counts.get('Tue', 0) }},
+          {{ daily_counts.get('Wed', 0) }},
+          {{ daily_counts.get('Thu', 0) }},
+          {{ daily_counts.get('Fri', 0) }},
+          {{ daily_counts.get('Sat', 0) }},
+          {{ daily_counts.get('Sun', 0) }}
+        ],
+        borderColor: 'rgba(54, 162, 235, 1)',
+        backgroundColor: 'rgba(54, 162, 235, 0.2)',
+        fill: true,
+        tension: 0.3
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+    }
+  });
+
+  // Search & show latest logic
+  document.querySelectorAll('.hidden-row').forEach(row => row.style.display = 'none');
+
+  function filterRows() {
+    const input = document.getElementById('requestSearch').value.toLowerCase();
+    const allRows = [...document.querySelectorAll('#requestsTableBody tr'), ...document.querySelectorAll('#acceptedTableBody tr')];
+    allRows.forEach(row => {
+      if (row.textContent.toLowerCase().includes(input)) {
+        row.style.display = '';
+      } else if (row.classList.contains('hidden-row')) {
+        row.style.display = 'none';
+      }
+    });
+  }
+
+  function checkEnter(event) {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      const input = document.getElementById('requestSearch').value.toLowerCase();
+      const allRows = [...document.querySelectorAll('#requestsTableBody tr'), ...document.querySelectorAll('#acceptedTableBody tr')];
+      let firstMatch = null;
+      allRows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        if (!firstMatch && text.includes(input)) {
+          firstMatch = row;
+        }
+      });
+      if (firstMatch) {
+        firstMatch.scrollIntoView({ behavior: "smooth", block: "center" });
+        firstMatch.style.transition = "box-shadow 0.3s ease";
+        firstMatch.style.boxShadow = "0 0 0 3px #facc15";
+        setTimeout(() => { firstMatch.style.boxShadow = "none"; }, 1500);
+      } else {
+        alert("No match found.");
+      }
+    }
+  }
+</script>
+
+{% endblock %}

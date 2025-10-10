@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Admin Home - PlasmoBlood Sync{% endblock %}
+{% block content %}
+<div class="max-w-6xl mx-auto px-6 py-10">
+  <div class="bg-gradient-to-r from-red-600 to-pink-500 text-white rounded-xl p-8 shadow-lg mb-10">
+    <h1 class="text-3xl font-bold">Welcome, Admin {{ session.username | capitalize }}</h1>
+    <p class="mt-2 text-sm">Manage donors, requests, and blood donation insights here.</p>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div class="bg-red-500 text-white p-6 rounded-xl text-center shadow">
+      <p class="text-lg font-semibold">Total Donors</p>
+      <h2 class="text-4xl font-bold mt-2">{{ stats.total_donors }}</h2>
+    </div>
+    <div class="bg-blue-500 text-white p-6 rounded-xl text-center shadow">
+      <p class="text-lg font-semibold">Total Requests</p>
+      <h2 class="text-4xl font-bold mt-2">{{ stats.total_requests }}</h2>
+    </div>
+    <div class="bg-yellow-500 text-white p-6 rounded-xl text-center shadow">
+      <p class="text-lg font-semibold">Urgent A+ Requests</p>
+      <h2 class="text-4xl font-bold mt-2">{{ stats.urgent_requests }}</h2>
+    </div>
+  </div>
+</div>
+{% endblock %}

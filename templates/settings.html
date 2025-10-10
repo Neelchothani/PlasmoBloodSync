@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Settings - PlasmoBlood Sync{% endblock %}
+{% block content %}
+<div class="max-w-xl mx-auto bg-white dark:bg-lightDark shadow-md rounded-xl p-6 mt-10">
+  <h2 class="text-2xl font-bold mb-6 text-primary dark:text-white">⚙️ Settings</h2>
+  <form method="POST">
+    <div class="mb-5">
+      <label class="block text-sm font-semibold mb-1" for="notifications">Email Notifications</label>
+      <select name="notifications" id="notifications" class="w-full px-4 py-2 border rounded-lg bg-gray-100 dark:bg-gray-800 dark:text-white">
+        <option value="on" {% if settings.notifications == 'on' %}selected{% endif %}>On</option>
+        <option value="off" {% if settings.notifications == 'off' %}selected{% endif %}>Off</option>
+      </select>
+    </div>
+
+    <div class="mb-5">
+      <label class="block text-sm font-semibold mb-1" for="theme">Preferred Theme</label>
+      <select name="theme" id="theme" class="w-full px-4 py-2 border rounded-lg bg-gray-100 dark:bg-gray-800 dark:text-white">
+        <option value="light" {% if settings.theme == 'light' %}selected{% endif %}>Light</option>
+        <option value="dark" {% if settings.theme == 'dark' %}selected{% endif %}>Dark</option>
+      </select>
+    </div>
+
+    <div class="mb-6">
+      <label class="block text-sm font-semibold mb-1" for="donationType">Default Donation Type</label>
+      <select name="donationType" id="donationType" class="w-full px-4 py-2 border rounded-lg bg-gray-100 dark:bg-gray-800 dark:text-white">
+        <option value="blood" {% if settings.donationType == 'blood' %}selected{% endif %}>Blood</option>
+        <option value="plasma" {% if settings.donationType == 'plasma' %}selected{% endif %}>Plasma</option>
+      </select>
+    </div>
+
+    <div class="flex justify-end">
+      <button type="submit" class="px-6 py-2 bg-primary text-white rounded-lg hover:bg-red-600 transition">Save Settings</button>
+    </div>
+  </form>
+</div>
+{% endblock %}
