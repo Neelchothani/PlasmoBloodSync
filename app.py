@@ -33,12 +33,17 @@ os.environ.setdefault("OAUTHLIB_INSECURE_TRANSPORT", "1")
 # -----------------------------------------
 # Firebase init
 # -----------------------------------------
-firebase_json_str = os.environ.get("FIREBASE_KEY")  # JSON as string in env variable
+load_dotenv(dotenv_path="1.env")
+firebase_json_str = os.environ.get("FIREBASE_KEY")
+if not firebase_json_str:
+    raise RuntimeError("FIREBASE_KEY environment variable is not set!")
+
+# Convert string to dict
 firebase_json = json.loads(firebase_json_str)
+
+# Initialize Firebase
 cred = credentials.Certificate(firebase_json)
 firebase_admin.initialize_app(cred)
-db = firestore.client()
-
 
 app = Flask(__name__)
 app.secret_key = "plasmo_secret_key"  # consider moving to env var
@@ -58,7 +63,6 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 # -----------------------------------------
 app.config["GOOGLE_CLIENT_ID"] = os.environ.get("GOOGLE_CLIENT_ID")
 app.config["GOOGLE_CLIENT_SECRET"] = os.environ.get("GOOGLE_CLIENT_SECRET")
-load_dotenv(dotenv_path="1.env")
 EMAIL_ADDRESS = "neelchothani9417@gmail.com"      # Replace with your sender email
 EMAIL_PASSWORD = "kfkq gibg zsis xfao"
 # Comma-separated admin email overrides, e.g. "admin@plasmo.com,owner@acme.com"
