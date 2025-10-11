@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Not Eligible</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: sans-serif;
+            background-color: #f8d7da;
+            color: #721c24;
+            text-align: center;
+        }
+        .alert-box {
+            border: 1px solid #f5c6cb;
+            background-color: #f8d7da;
+            padding: 30px;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="alert-box">
+        <h1>❌ You are not eligible to donate</h1>
+        <p>Please wait, you will be signed out automatically.</p>
+    </div>
+
+    <script>
+        // Log out after 5 seconds
+        setTimeout(function() {
+            window.location.href = "{{ url_for('signout') }}";
+        }, 10000);
+    </script>
+</body>
+</html>
