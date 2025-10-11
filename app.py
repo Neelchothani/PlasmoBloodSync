@@ -1088,24 +1088,39 @@ from datetime import datetime
 @app.route("/submit_request", methods=["POST"])
 def submit_request():
     try:
-        data = request.get_json()
+        # Support both JSON and form submissions
+        if request.is_json:
+            data = request.get_json()
+        else:
+            data = request.form
+
+        # Extract fields safely
         patient_name = data.get("patient_name", "").strip()
         blood_group = data.get("blood_group", "").strip()
         details = data.get("details", "").strip()
-        lat = data.get("lat")
-        lng = data.get("lng")
         email = data.get("email", "").strip()
         phone = data.get("phone", "").strip()
 
+        # Convert lat/lng safely
+        try:
+            lat = float(data.get("lat"))
+            lng = float(data.get("lng"))
+        except (TypeError, ValueError):
+            lat = None
+            lng = None
+
+        # Validate required fields
         if not patient_name or not blood_group or lat is None or lng is None:
             return jsonify({
                 "status": "error",
                 "message": "Patient name, blood/plasma group, and location are required"
-            })
+            }), 400
 
+        # Generate request ID and timestamp
         request_id = str(uuid.uuid4())
         created_at = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 
+        # Prepare request data
         request_data = {
             "patient_name": patient_name,
             "blood_group": blood_group,
@@ -1118,7 +1133,7 @@ def submit_request():
             "created_at": created_at
         }
 
-        # Save the request
+        # Save the request in Firestore
         db.collection(get_request_collection()).document(request_id).set(request_data)
 
         # Find eligible donors
@@ -1143,39 +1158,39 @@ def submit_request():
                 "accepted_donor": accepted_donor
             })
 
-            # --- FIRST EMAIL: Notify donor immediately ---
-            try:
-                msg = MIMEMultipart("alternative")
-                msg["Subject"] = "🩸 New Blood/Plasma Request"
-                msg["From"] = EMAIL_ADDRESS
-                msg["To"] = accepted_donor["email"]
+            # Send donor notification emails in threads
+            import threading
 
-                html = f"""
-                <html>
-                <body>
-                    <h2>New Blood/Plasma Request</h2>
-                    <p><strong>Patient:</strong> {patient_name}</p>
-                    <p><strong>Blood/Plasma Group:</strong> {blood_group}</p>
-                    <p>Please respond:</p>
-                    <a href="{request.host_url}donor_response/{request_id}/{accepted_donor.get('id')}/accept">✅ Accept</a>
-                    <a href="{request.host_url}donor_response/{request_id}/{accepted_donor.get('id')}/reject">❌ Reject</a>
-                </body>
-                </html>
-                """
-                msg.attach(MIMEText(html, "html"))
+            def send_donor_email():
+                try:
+                    msg = MIMEMultipart("alternative")
+                    msg["Subject"] = "🩸 New Blood/Plasma Request"
+                    msg["From"] = EMAIL_ADDRESS
+                    msg["To"] = accepted_donor["email"]
 
-                with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-                    server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
-                    server.sendmail(EMAIL_ADDRESS, accepted_donor["email"], msg.as_string())
+                    html = f"""
+                    <html>
+                    <body>
+                        <h2>New Blood/Plasma Request</h2>
+                        <p><strong>Patient:</strong> {patient_name}</p>
+                        <p><strong>Blood/Plasma Group:</strong> {blood_group}</p>
+                        <p>Please respond:</p>
+                        <a href="{request.host_url}donor_response/{request_id}/{accepted_donor.get('id')}/accept">✅ Accept</a>
+                        <a href="{request.host_url}donor_response/{request_id}/{accepted_donor.get('id')}/reject">❌ Reject</a>
+                    </body>
+                    </html>
+                    """
+                    msg.attach(MIMEText(html, "html"))
 
-            except Exception as e:
-                print("Error sending first email:", e)
+                    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+                        server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
+                        server.sendmail(EMAIL_ADDRESS, accepted_donor["email"], msg.as_string())
+                except Exception as e:
+                    print("Error sending donor email:", e)
 
-            # --- SECOND EMAIL: Confirmation after 5 seconds ---
             def send_confirmation_email():
                 import time
                 time.sleep(5)
-
                 try:
                     FEEDBACK_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSfiyiQmI3xUZc1zHrUGHJQsYOVB_JGAox4mDMnDYUHA2xxZYQ/viewform?usp=header"
 
@@ -1213,14 +1228,13 @@ def submit_request():
                     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
                         server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
                         server.sendmail(EMAIL_ADDRESS, accepted_donor["email"], msg2.as_string())
-
                 except Exception as e:
                     print("Error sending confirmation email:", e)
 
-            import threading
+            threading.Thread(target=send_donor_email).start()
             threading.Thread(target=send_confirmation_email).start()
 
-        # Always return request_id and redirect_url to scanner page
+        # Always return JSON, never HTML
         return jsonify({
             "status": "success",
             "message": "Request submitted successfully",
@@ -1229,8 +1243,8 @@ def submit_request():
         })
 
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)})
-
+        print("Error in /submit_request:", e)
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 
 
