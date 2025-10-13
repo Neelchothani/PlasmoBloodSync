@@ -28,8 +28,9 @@ from email.mime.multipart import MIMEMultipart
 from dotenv import load_dotenv
 
 # Allow HTTP for local OAuth testing (never do this in production)
-os.environ.setdefault("OAUTHLIB_INSECURE_TRANSPORT", "1")
-
+# os.environ.setdefault("OAUTHLIB_INSECURE_TRANSPORT", "1")
+if os.environ.get("FLASK_ENV") == "development":
+    os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 # -----------------------------------------
 # Firebase init
 # -----------------------------------------
@@ -45,14 +46,17 @@ firebase_json = json.loads(firebase_json_str)
 cred = credentials.Certificate(firebase_json)
 firebase_admin.initialize_app(cred)
 db = firestore.client()
-
+print("✅ Firebase and Firestore initialized successfully")
 app = Flask(__name__)
-app.secret_key = "plasmo_secret_key"  # consider moving to env var
+app.secret_key = os.environ.get("SECRET_KEY", "plasmo_secret_key_change_in_production")  # consider moving to env var
 
 # Session cookie settings (good defaults for localhost)
 app.config.update(
-    SESSION_COOKIE_SAMESITE="Lax",
-    SESSION_COOKIE_SECURE=False,  # True in production with HTTPS
+    SESSION_COOKIE_SECURE=True,         # Required for HTTPS (Render)
+    SESSION_COOKIE_HTTPONLY=True,       # Prevent JavaScript access
+    SESSION_COOKIE_SAMESITE="Lax",      # CSRF protection
+    PERMANENT_SESSION_LIFETIME=86400,   # 24 hour session (in seconds)
+    SESSION_COOKIE_NAME="plasmo_session" # Custom cookie name
 )
 
 UPLOAD_FOLDER = "uploads"
@@ -886,8 +890,18 @@ def google_login():
 
     # Store temporarily for callback
     session["pending_role"] = role
+    session.permanent = True  # Make session persistent
 
-    redirect_uri = url_for("google_callback", _external=True)
+    # CRITICAL FIX: Force HTTPS scheme for production
+    # Detect if we're on Render (or any production HTTPS environment)
+    if request.headers.get('X-Forwarded-Proto') == 'https' or request.url.startswith('https://'):
+        redirect_uri = url_for("google_callback", _external=True, _scheme='https')
+    else:
+        # Local development fallback
+        redirect_uri = url_for("google_callback", _external=True)
+    
+    print(f"[OAuth] Redirect URI: {redirect_uri}")  # Debug log
+    
     return oauth.google.authorize_redirect(
         redirect_uri,
         prompt="select_account"
@@ -897,11 +911,16 @@ def google_login():
 @app.route("/google_callback")
 def google_callback():
     try:
+        print("[Google Callback] Starting OAuth callback...")  # Debug
+        
         token = oauth.google.authorize_access_token()
         if not token:
+            print("[Google Callback] No token received")
             flash("Failed to receive OAuth token from Google.", "error")
             return redirect(url_for("signin"))
 
+        print("[Google Callback] Token received, fetching user info...")
+        
         resp = oauth.google.get("https://www.googleapis.com/oauth2/v2/userinfo", token=token)
         if not resp.ok:
             raise Exception(f"Failed to fetch user info: {resp.text}")
@@ -911,21 +930,30 @@ def google_callback():
         name = userinfo.get("name") or email.split("@")[0]
         picture = userinfo.get("picture")
 
+        print(f"[Google Callback] User: {email}")
+
         if not email:
             flash("Google account has no email.", "error")
             return redirect(url_for("signin"))
 
+        # Get or create user in Firestore
         users_ref = db.collection("users").document(email)
         snap = users_ref.get()
 
         if snap.exists:
             # Existing user → reuse stored role
-            role = snap.to_dict().get("role", "user")
+            existing_data = snap.to_dict()
+            role = existing_data.get("role", "user")
+            print(f"[Google Callback] Existing user, role: {role}")
         else:
-            # First-time user → assign from dropdown (no restriction)
-            role = session.pop("pending_role", "user")
+            # First-time user → assign from dropdown
+            role = session.get("pending_role", "user")
+            print(f"[Google Callback] New user, assigned role: {role}")
 
-        # 🔥 Convert donor → user for Firestore consistency
+        # Clean up pending_role from session
+        session.pop("pending_role", None)
+
+        # Convert donor → user for consistency
         if role.lower() == "donor":
             role = "user"
 
@@ -938,25 +966,33 @@ def google_callback():
             "last_login": datetime.utcnow().isoformat() + "Z"
         }, merge=True)
 
-        # Set session
+        print(f"[Google Callback] User saved to Firestore")
+
+        # Set session - make it permanent
+        session.permanent = True
         session["email"] = email
         session["username"] = name
         session["role"] = role
         session["picture"] = picture
 
+        print(f"[Google Callback] Session set for {email} with role {role}")
+
         flash("Signed in successfully ✔️", "success")
 
         # Redirect by role
         if role == "admin":
+            print("[Google Callback] Redirecting to admin_home")
             return redirect(url_for("admin_home"))
         else:
+            print("[Google Callback] Redirecting to dashboard")
             return redirect(url_for("dashboard"))
 
     except Exception as e:
-        print("[Google Callback] Exception:", e)
+        print(f"[Google Callback] Exception: {str(e)}")
+        import traceback
+        traceback.print_exc()
         flash(f"Google sign-in failed: {str(e)}", "error")
         return redirect(url_for("signin"))
-
 
 
 @app.route("/signout")
