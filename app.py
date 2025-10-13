@@ -1159,7 +1159,7 @@ def submit_request():
 
         # Generate request ID and timestamp
         request_id = str(uuid.uuid4())
-        created_at = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        created_at = datetime.utcnow()
 
         # Prepare request data
         request_data = {
@@ -1176,6 +1176,7 @@ def submit_request():
 
         # Save the request in Firestore
         db.collection(get_request_collection()).document(request_id).set(request_data)
+        print(f"✅ Request {request_id} saved to Firestore")
 
         # Find eligible donors
         users = db.collection("users").where("role", "==", "user").get()
@@ -1190,8 +1191,11 @@ def submit_request():
                 user["id"] = user_doc.id
                 eligible_users.append(user)
 
+        print(f"📍 Found {len(eligible_users)} eligible donors within 10km")
+
         if eligible_users:
             accepted_donor = random.choice(eligible_users)
+            print(f"🎯 Selected donor: {accepted_donor.get('name')} ({accepted_donor['email']})")
 
             # Update request as accepted
             db.collection(get_request_collection()).document(request_id).update({
@@ -1199,83 +1203,76 @@ def submit_request():
                 "accepted_donor": accepted_donor
             })
 
-            # Send donor notification emails in threads
+            # Send donor notification email
             import threading
 
             def send_donor_email():
                 try:
+                    print(f"📧 Attempting to send email to {accepted_donor['email']}")
+                    
                     msg = MIMEMultipart("alternative")
                     msg["Subject"] = "🩸 New Blood/Plasma Request"
                     msg["From"] = EMAIL_ADDRESS
                     msg["To"] = accepted_donor["email"]
 
+                    # Use full URL with scheme
+                    base_url = request.url_root.rstrip('/')
+                    accept_url = f"{base_url}/donor_response/{request_id}/{accepted_donor.get('id')}/accept"
+                    reject_url = f"{base_url}/donor_response/{request_id}/{accepted_donor.get('id')}/reject"
+
                     html = f"""
                     <html>
-                    <body>
-                        <h2>New Blood/Plasma Request</h2>
+                    <body style="font-family: Arial, sans-serif; padding: 20px;">
+                        <h2 style="color: #d32f2f;">New Blood/Plasma Request</h2>
                         <p><strong>Patient:</strong> {patient_name}</p>
                         <p><strong>Blood/Plasma Group:</strong> {blood_group}</p>
-                        <p>Please respond:</p>
-                        <a href="{request.host_url}donor_response/{request_id}/{accepted_donor.get('id')}/accept">✅ Accept</a>
-                        <a href="{request.host_url}donor_response/{request_id}/{accepted_donor.get('id')}/reject">❌ Reject</a>
+                        <p><strong>Details:</strong> {details or 'N/A'}</p>
+                        <p><strong>Contact:</strong> {phone or 'N/A'}</p>
+                        <br>
+                        <p>Please respond to this request:</p>
+                        <table cellspacing="0" cellpadding="0">
+                          <tr>
+                            <td style="padding: 10px;">
+                              <a href="{accept_url}" 
+                                 style="background-color: #28a745; color: white; padding: 12px 25px; 
+                                        text-decoration: none; border-radius: 5px; font-weight: bold;">
+                                 ✅ Accept Request
+                              </a>
+                            </td>
+                            <td style="padding: 10px;">
+                              <a href="{reject_url}" 
+                                 style="background-color: #dc3545; color: white; padding: 12px 25px; 
+                                        text-decoration: none; border-radius: 5px; font-weight: bold;">
+                                 ❌ Reject Request
+                              </a>
+                            </td>
+                          </tr>
+                        </table>
                     </body>
                     </html>
                     """
                     msg.attach(MIMEText(html, "html"))
 
-                    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+                    # Send email
+                    context = ssl.create_default_context()
+                    with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
                         server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
                         server.sendmail(EMAIL_ADDRESS, accepted_donor["email"], msg.as_string())
+                    
+                    print(f"✅ Email sent successfully to {accepted_donor['email']}")
+                    
                 except Exception as e:
-                    print("Error sending donor email:", e)
+                    print(f"❌ Error sending donor email: {str(e)}")
+                    import traceback
+                    traceback.print_exc()
 
-            def send_confirmation_email():
-                import time
-                time.sleep(5)
-                try:
-                    FEEDBACK_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSfiyiQmI3xUZc1zHrUGHJQsYOVB_JGAox4mDMnDYUHA2xxZYQ/viewform?usp=header"
+            # Start email sending in background
+            threading.Thread(target=send_donor_email, daemon=True).start()
 
-                    msg2 = MIMEMultipart("alternative")
-                    msg2["Subject"] = "✅ Donation Confirmed"
-                    msg2["From"] = EMAIL_ADDRESS
-                    msg2["To"] = accepted_donor["email"]
+        else:
+            print("⚠️ No eligible donors found")
 
-                    html2 = f"""
-                    <html>
-                    <body>
-                        <h2>Thank You, {accepted_donor.get('name', 'Donor')} ❤️</h2>
-                        <p>You have <strong>accepted</strong> the blood/plasma request.</p>
-                        <p><strong>Patient:</strong> {patient_name}</p>
-                        <p><strong>Blood/Plasma Group Needed:</strong> {blood_group}</p>
-                        <br>
-                        <p>We would love your feedback:</p>
-                        <table cellspacing="0" cellpadding="0">
-                          <tr>
-                            <td align="center" bgcolor="#28a745" style="border-radius:5px;">
-                              <a href="{FEEDBACK_FORM_URL}" target="_blank" 
-                                 style="font-size:16px; font-family:Arial,sans-serif; color:#ffffff; 
-                                        text-decoration:none; padding:12px 25px; display:inline-block; font-weight:bold;">
-                                 📝 Give Feedback
-                              </a>
-                            </td>
-                          </tr>
-                        </table>
-                        <p style="font-size:12px; color:#555555; margin-top:10px;">Your feedback helps us improve the donation process.</p>
-                    </body>
-                    </html>
-                    """
-                    msg2.attach(MIMEText(html2, "html"))
-
-                    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-                        server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
-                        server.sendmail(EMAIL_ADDRESS, accepted_donor["email"], msg2.as_string())
-                except Exception as e:
-                    print("Error sending confirmation email:", e)
-
-            threading.Thread(target=send_donor_email).start()
-            threading.Thread(target=send_confirmation_email).start()
-
-        # Always return JSON, never HTML
+        # Always return JSON
         return jsonify({
             "status": "success",
             "message": "Request submitted successfully",
@@ -1284,26 +1281,24 @@ def submit_request():
         })
 
     except Exception as e:
-        print("Error in /submit_request:", e)
+        print(f"❌ Error in /submit_request: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
-
-
-
-
-
-
-
-@app.route("/donor_response/<request_id>/<donor_id>/<action>", methods=["POST"])
+@app.route("/donor_response/<request_id>/<donor_id>/<action>")
 def donor_response(request_id, donor_id, action):
+    """Handle donor accept/reject response - CHANGED TO GET for email links"""
     try:
+        print(f"🔔 Donor response: {action} from {donor_id} for request {request_id}")
+        
         # Fetch request
-        request_ref = db.collection("blood_requests").document(request_id)
+        request_ref = db.collection(get_request_collection()).document(request_id)
         request_doc = request_ref.get()
 
         if not request_doc.exists:
-            return jsonify({"status": "error", "message": "Request not found"}), 404
+            return "<h2>❌ Request not found</h2>", 404
 
         request_data = request_doc.to_dict()
 
@@ -1312,14 +1307,13 @@ def donor_response(request_id, donor_id, action):
         donor_doc = donor_ref.get()
 
         if not donor_doc.exists:
-            return jsonify({"status": "error", "message": "Donor not found"}), 404
+            return "<h2>❌ Donor not found</h2>", 404
 
         donor_data = donor_doc.to_dict()
 
-        # Common patient/admin email
-        patient_email = request_data.get("patient_email", None)
-        admin_email = EMAIL_ADDRESS
-
+        # Get patient/admin email
+        patient_email = request_data.get("email") or EMAIL_ADDRESS
+        
         FEEDBACK_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSfiyiQmI3xUZc1zHrUGHJQsYOVB_JGAox4mDMnDYUHA2xxZYQ/viewform?usp=header"
 
         if action == "accept":
@@ -1329,84 +1323,118 @@ def donor_response(request_id, donor_id, action):
                 "accepted_by": donor_id,
                 "accepted_at": datetime.utcnow()
             })
+            print(f"✅ Request {request_id} accepted by {donor_data.get('name')}")
 
-            # Donor email with feedback button
-            donor_msg = MIMEMultipart("alternative")
-            donor_msg["Subject"] = "✅ Donation Confirmed"
-            donor_msg["From"] = EMAIL_ADDRESS
-            donor_msg["To"] = donor_data["email"]
+            # Send confirmation email to donor
+            try:
+                donor_msg = MIMEMultipart("alternative")
+                donor_msg["Subject"] = "✅ Donation Confirmed - Thank You!"
+                donor_msg["From"] = EMAIL_ADDRESS
+                donor_msg["To"] = donor_data["email"]
 
-            html_content = f"""
+                html_content = f"""
+                <html>
+                <body style="font-family: Arial, sans-serif; padding: 20px;">
+                    <h2 style="color: #28a745;">Thank You, {donor_data.get("name", "Donor")} ❤️</h2>
+                    <p>You have <strong>accepted</strong> the blood/plasma donation request.</p>
+                    <p><strong>Patient:</strong> {request_data.get("patient_name")}</p>
+                    <p><strong>Blood/Plasma Group Needed:</strong> {request_data.get("blood_group")}</p>
+                    <p><strong>Contact:</strong> {request_data.get("phone", "N/A")}</p>
+                    <br>
+                    <p>We would love your feedback:</p>
+                    <table cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td align="center" bgcolor="#28a745" style="border-radius:5px;">
+                          <a href="{FEEDBACK_FORM_URL}" target="_blank" 
+                             style="font-size:16px; font-family:Arial,sans-serif; color:#ffffff; 
+                                    text-decoration:none; padding:12px 25px; display:inline-block; font-weight:bold;">
+                             📝 Give Feedback
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                    <p style="font-size:12px; color:#555555; margin-top:10px;">Your feedback helps us improve the donation process.</p>
+                </body>
+                </html>
+                """
+                donor_msg.attach(MIMEText(html_content, "html"))
+
+                # Send notification to patient
+                notify_msg = MIMEMultipart("alternative")
+                notify_msg["Subject"] = f"🩸 Donor Found: {donor_data.get('name', 'Donor')}"
+                notify_msg["From"] = EMAIL_ADDRESS
+                notify_msg["To"] = patient_email
+
+                notify_html = f"""
+                <html>
+                <body style="font-family: Arial, sans-serif; padding: 20px;">
+                    <h2 style="color: #28a745;">Great News! A Donor Has Accepted Your Request</h2>
+                    <p><strong>Patient:</strong> {request_data.get("patient_name")}</p>
+                    <p><strong>Blood/Plasma Group:</strong> {request_data.get("blood_group")}</p>
+                    <hr>
+                    <h3>Donor Information:</h3>
+                    <p><strong>Name:</strong> {donor_data.get('name', 'N/A')}</p>
+                    <p><strong>Phone:</strong> {donor_data.get('phone', 'N/A')}</p>
+                    <p><strong>Email:</strong> {donor_data.get('email', 'N/A')}</p>
+                    <p style="color: #666;">Please contact the donor to arrange the donation.</p>
+                </body>
+                </html>
+                """
+                notify_msg.attach(MIMEText(notify_html, "html"))
+
+                # Send both emails
+                context = ssl.create_default_context()
+                with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
+                    server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
+                    server.sendmail(EMAIL_ADDRESS, donor_data["email"], donor_msg.as_string())
+                    server.sendmail(EMAIL_ADDRESS, patient_email, notify_msg.as_string())
+                
+                print(f"✅ Confirmation emails sent")
+
+            except Exception as e:
+                print(f"❌ Error sending confirmation emails: {str(e)}")
+                import traceback
+                traceback.print_exc()
+
+            return f"""
             <html>
-            <body>
-                <h2>Thank You, {donor_data.get("name", "Donor")} ❤️</h2>
-                <p>You have <strong>accepted</strong> the blood donation request.</p>
-                <p><strong>Patient:</strong> {request_data.get("patient_name")}</p>
-                <p><strong>Blood Group Needed:</strong> {request_data.get("blood_group")}</p>
-                <br>
-                <p>We would love your feedback:</p>
-                <table cellspacing="0" cellpadding="0">
-                  <tr>
-                    <td align="center" bgcolor="#28a745" style="border-radius:5px;">
-                      <a href="{FEEDBACK_FORM_URL}" target="_blank" 
-                         style="font-size:16px; font-family:Arial,sans-serif; color:#ffffff; 
-                                text-decoration:none; padding:12px 25px; display:inline-block; font-weight:bold;">
-                         📝 Give Feedback
-                      </a>
-                    </td>
-                  </tr>
-                </table>
-                <p style="font-size:12px; color:#555555; margin-top:10px;">Your feedback helps us improve the donation process.</p>
+            <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+                <h1 style="color: #28a745;">✅ Thank You!</h1>
+                <p style="font-size: 18px;">You have successfully accepted the donation request.</p>
+                <p>A confirmation email has been sent to you.</p>
+                <a href="{FEEDBACK_FORM_URL}" style="display: inline-block; margin-top: 20px; 
+                   background-color: #28a745; color: white; padding: 12px 25px; 
+                   text-decoration: none; border-radius: 5px;">📝 Give Feedback</a>
             </body>
             </html>
             """
-
-            donor_msg.attach(MIMEText(html_content, "html"))
-
-            # Email to patient/admin notifying acceptance
-            notify_msg = MIMEMultipart("alternative")
-            notify_msg["Subject"] = f"🩸 Request Accepted by Donor: {donor_data.get('name', 'Donor')}"
-            notify_msg["From"] = EMAIL_ADDRESS
-            notify_msg["To"] = patient_email if patient_email else admin_email
-
-            notify_html = f"""
-            <html>
-            <body>
-                <h2>Your blood/plasma request has been accepted!</h2>
-                <p><strong>Patient:</strong> {request_data.get("patient_name")}</p>
-                <p><strong>Blood/Plasma Group:</strong> {request_data.get("blood_group")}</p>
-                <p><strong>Donor:</strong> {donor_data.get('name', 'Donor')}</p>
-                <p>Contact Donor: {donor_data.get('phone', 'N/A')} | Email: {donor_data.get('email', 'N/A')}</p>
-            </body>
-            </html>
-            """
-            notify_msg.attach(MIMEText(notify_html, "html"))
-
-            # Send both emails
-            with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-                server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
-                server.sendmail(EMAIL_ADDRESS, donor_data["email"], donor_msg.as_string())
-                server.sendmail(EMAIL_ADDRESS, notify_msg["To"], notify_msg.as_string())
-
-            return jsonify({"status": "success", "message": "Donor accepted, emails sent with feedback button"})
 
         elif action == "reject":
-            # Keep your existing rejection logic (no feedback button)
             request_ref.update({
                 "status": "rejected",
                 "rejected_by": donor_id,
                 "rejected_at": datetime.utcnow()
             })
-            # send rejection emails as you already have
-            # ...
-            return jsonify({"status": "success", "message": "Donor rejected and emails sent"})
+            print(f"❌ Request {request_id} rejected by {donor_data.get('name')}")
+            
+            return f"""
+            <html>
+            <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+                <h1 style="color: #dc3545;">Request Declined</h1>
+                <p style="font-size: 18px;">You have declined this donation request.</p>
+                <p>We'll notify other available donors.</p>
+            </body>
+            </html>
+            """
 
         else:
-            return jsonify({"status": "error", "message": "Invalid action"}), 400
+            return "<h2>❌ Invalid action</h2>", 400
 
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
-
+        print(f"❌ Error in donor_response: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return f"<h2>❌ Error: {str(e)}</h2>", 500
 
 
 
