@@ -9,6 +9,7 @@ body {
     font-family: sans-serif; 
     background: #f0f0f0; 
     color: #000; 
+    padding: 20px;
 }
 #radar { 
     width: 300px; 
@@ -37,58 +38,94 @@ body {
 #donorInfo { 
     margin-top: 20px; 
     font-size: 18px; 
-    color: #000; 
+    color: #000;
+    padding: 20px;
+    background: white;
+    border-radius: 5px;
+    display: none;
 }
-#donorInfo h3 { color: #000; }
-#donorInfo p { color: #000; }
-#nearbyList { margin-top: 20px; text-align: left; max-width: 400px; margin-left:auto; margin-right:auto; }
-#nearbyList div { padding: 6px 0; border-bottom: 1px solid #ccc; }
+#donorInfo.show { 
+    display: block;
+}
+#donorInfo h3 { color: #28a745; }
+#donorInfo p { color: #333; margin: 8px 0; }
+#nearbyList { 
+    margin-top: 20px; 
+    text-align: left; 
+    max-width: 500px; 
+    margin-left: auto; 
+    margin-right: auto; 
+}
+#nearbyList div { 
+    padding: 12px; 
+    border: 1px solid #ddd; 
+    margin: 8px 0;
+    border-radius: 5px;
+    background: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+#nearbyList button {
+    padding: 8px 15px;
+    background: #28a745;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+}
+#nearbyList button:hover {
+    background: #218838;
+}
+.loading {
+    color: #666;
+    font-size: 16px;
+}
 </style>
 </head>
 <body>
 <h2>Searching for Donors...</h2>
 <div id="radar"><div class="pulse"></div></div>
 <audio id="alertSound" src="https://www.soundjay.com/buttons/beep-07.mp3"></audio>
+
 <div id="donorInfo"></div>
 <div id="nearbyList"></div>
-
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<div id="loading" class="loading">Scanning for nearby donors...</div>
 
 <script>
-const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_PROJECT.firebaseapp.com",
-    projectId: "YOUR_PROJECT",
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-
-const requestId = "{{ request_id }}";  // passed from Flask
+const requestId = "{{ request_id }}";
 const donorInfoDiv = document.getElementById("donorInfo");
 const nearbyListDiv = document.getElementById("nearbyList");
+const loadingDiv = document.getElementById("loading");
 const alertSound = document.getElementById("alertSound");
 
-const acceptedDonor = {{ accepted_donor | default({}) | tojson }};
-const requestedGroup = "{{ request.blood_group }}"; // Requested group from Flask
-
-// Show donor info & play sound
+// Show donor info when someone accepts
 function showDonorInfo(donor) {
     donorInfoDiv.innerHTML = `
-        <h3>Donor Found!</h3>
-        <p>Name: ${donor.name}</p>
-        <p>Blood/Plasma Group Needed: ${requestedGroup}</p>
+        <h3>✅ Donor Accepted Your Request!</h3>
+        <p><strong>Donor Name:</strong> ${donor.name || 'N/A'}</p>
+        <p><strong>Email:</strong> ${donor.email || 'N/A'}</p>
+        <p><strong>Phone:</strong> ${donor.phone || 'N/A'}</p>
+        <p style="margin-top: 15px; color: #666;">A confirmation email has been sent to the donor.</p>
     `;
+    donorInfoDiv.classList.add("show");
+    loadingDiv.style.display = "none";
+    nearbyListDiv.innerHTML = "";
     alertSound.play();
     document.body.style.background = "#d4edda";
     document.querySelector("#radar .pulse").style.background = "rgba(0,200,0,0.4)";
 }
 
-// Display nearby donors list with Accept button
+// Display nearby donors list
 function displayNearbyUsers(users){
+    loadingDiv.style.display = "none";
+    if(users.length === 0) {
+        nearbyListDiv.innerHTML = "<p style='color: #666;'>No donors found within 10km</p>";
+        return;
+    }
     nearbyListDiv.innerHTML = users.map(u => `
         <div>
-            ${u.name} (${u.distance} km away)
+            <span>${u.name} (${u.distance} km away)</span>
             <button onclick="acceptRequest('${u.id}')">Accept</button>
         </div>
     `).join("");
@@ -104,6 +141,8 @@ async function acceptRequest(userId){
     const data = await res.json();
     if(data.status === "success"){
         showDonorInfo({name: data.accepted_user});
+    } else {
+        alert("Error: " + data.message);
     }
 }
 
@@ -111,41 +150,64 @@ async function acceptRequest(userId){
 function scanNearby(){
     if(!navigator.geolocation){
         alert("Geolocation not supported!");
+        loadingDiv.style.display = "none";
         return;
     }
 
     navigator.geolocation.getCurrentPosition(async (pos) => {
         const {latitude, longitude} = pos.coords;
 
-        const res = await fetch("/scan_nearby_users", {
-            method: "POST",
-            headers: {"Content-Type":"application/json"},
-            body: JSON.stringify({lat: latitude, lng: longitude, request_id: requestId})
-        });
+        try {
+            const res = await fetch("/scan_nearby_users", {
+                method: "POST",
+                headers: {"Content-Type":"application/json"},
+                body: JSON.stringify({lat: latitude, lng: longitude, request_id: requestId})
+            });
 
-        const data = await res.json();
-        if(data.status === "success"){
-            displayNearbyUsers(data.nearby_users);
+            const data = await res.json();
+            if(data.status === "success"){
+                displayNearbyUsers(data.nearby_users);
+            } else {
+                loadingDiv.innerHTML = "Error: " + (data.message || "Unknown error");
+            }
+        } catch(err) {
+            console.error(err);
+            loadingDiv.innerHTML = "Error scanning for donors. Please try again.";
         }
-    }, (err) => { console.error(err); alert("Please allow location access!"); });
+    }, (err) => { 
+        console.error(err); 
+        loadingDiv.innerHTML = "Please enable location access to find donors";
+    });
 }
 
-// Initial scan on page load
-document.addEventListener("DOMContentLoaded", () => {
-    // If a donor is already accepted, show immediately
-    if(acceptedDonor && Object.keys(acceptedDonor).length > 0){
-        showDonorInfo(acceptedDonor);
+// Check if donor already accepted (polling or real-time)
+async function checkForAcceptedDonor() {
+    try {
+        const res = await fetch(`/get_request/${requestId}`);
+        const data = await res.json();
+        
+        if(data.status === "success" && data.request.status === "accepted") {
+            showDonorInfo(data.request.accepted_donor);
+            return true;
+        }
+    } catch(err) {
+        console.error("Error checking request status:", err);
     }
-    scanNearby();
+    return false;
+}
 
-    // Firestore real-time listener for updates
-    db.collection("blood_requests").doc(requestId)
-      .onSnapshot(doc => {
-          const data = doc.data();
-          if(data && data.status === "accepted" && data.accepted_donor){
-              showDonorInfo(data.accepted_donor);
-          }
-      });
+// Initialize on page load
+document.addEventListener("DOMContentLoaded", async () => {
+    // Check if already accepted
+    const alreadyAccepted = await checkForAcceptedDonor();
+    
+    if(!alreadyAccepted) {
+        // Start scanning for donors
+        scanNearby();
+        
+        // Poll every 5 seconds for acceptance
+        setInterval(checkForAcceptedDonor, 5000);
+    }
 });
 </script>
 </body>

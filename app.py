@@ -28,6 +28,10 @@ from email.mime.multipart import MIMEMultipart
 from dotenv import load_dotenv
 import socket  # Add this with other imports
 import threading
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail, Email, To, Content
+import os
+from dotenv import load_dotenv
 # Allow HTTP for local OAuth testing (never do this in production)
 # os.environ.setdefault("OAUTHLIB_INSECURE_TRANSPORT", "1")
 if os.environ.get("FLASK_ENV") == "development":
@@ -67,8 +71,8 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 # -----------------------------------------
 # Google OAuth config
 # -----------------------------------------
-app.config["GOOGLE_CLIENT_ID"] = os.environ.get("GOOGLE_CLIENT_ID")
-app.config["GOOGLE_CLIENT_SECRET"] = os.environ.get("GOOGLE_CLIENT_SECRET")
+SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY")
+SENDGRID_FROM_EMAIL = os.environ.get("SENDGRID_FROM_EMAIL", "noreply@plasmobloodsync.com")
 EMAIL_ADDRESS = "neelchothani9417@gmail.com"      # Replace with your sender email
 EMAIL_PASSWORD = "kfkq gibg zsis xfao"
 # Comma-separated admin email overrides, e.g. "admin@plasmo.com,owner@acme.com"
@@ -489,6 +493,32 @@ def send_email_async(to_email, subject, html_body, timeout=25):
     thread.start()
     return thread
 
+def send_email_blocking(to_email, subject, html_body):
+    """Send email using SendGrid (works on Render)"""
+    try:
+        message = Mail(
+            from_email=SENDGRID_FROM_EMAIL,
+            to_emails=To(to_email),
+            subject=subject,
+            html_content=html_body
+        )
+        
+        sg = SendGridAPIClient(SENDGRID_API_KEY)
+        response = sg.send(message)
+        
+        print(f"✅ Email sent to {to_email}: {response.status_code}")
+        return True
+    except Exception as e:
+        print(f"❌ Error sending email to {to_email}: {str(e)}")
+        return False
+    
+def send_email_threaded(to_email, subject, html_body):
+    """Send email in background thread (non-blocking)"""
+    def _send():
+        send_email_blocking(to_email, subject, html_body)
+    
+    thread = threading.Thread(target=_send, daemon=True)
+    thread.start()
 # =========================================
 # ---------------- ROUTES -----------------
 # =========================================
@@ -1229,39 +1259,24 @@ import time
 @app.route("/submit_request", methods=["POST"])
 def submit_request():
     try:
-        # Support both JSON and form submissions
-        if request.is_json:
-            data = request.get_json()
-        else:
-            data = request.form
-
-        # Extract fields safely
+        data = request.get_json()
         patient_name = data.get("patient_name", "").strip()
         blood_group = data.get("blood_group", "").strip()
         details = data.get("details", "").strip()
+        lat = data.get("lat")
+        lng = data.get("lng")
         email = data.get("email", "").strip()
         phone = data.get("phone", "").strip()
 
-        # Convert lat/lng safely
-        try:
-            lat = float(data.get("lat"))
-            lng = float(data.get("lng"))
-        except (TypeError, ValueError):
-            lat = None
-            lng = None
-
-        # Validate required fields
         if not patient_name or not blood_group or lat is None or lng is None:
             return jsonify({
                 "status": "error",
                 "message": "Patient name, blood/plasma group, and location are required"
-            }), 400
+            })
 
-        # Generate request ID and timestamp
         request_id = str(uuid.uuid4())
         created_at = datetime.utcnow()
 
-        # Prepare request data
         request_data = {
             "patient_name": patient_name,
             "blood_group": blood_group,
@@ -1274,7 +1289,7 @@ def submit_request():
             "created_at": created_at
         }
 
-        # Save the request in Firestore
+        # Save the request
         db.collection(get_request_collection()).document(request_id).set(request_data)
         print(f"✅ Request {request_id} saved to Firestore")
 
@@ -1303,12 +1318,8 @@ def submit_request():
                 "accepted_donor": accepted_donor
             })
 
-            # Prepare email content
-            base_url = request.url_root.rstrip('/')
-            accept_url = f"{base_url}/donor_response/{request_id}/{accepted_donor.get('id')}/accept"
-            reject_url = f"{base_url}/donor_response/{request_id}/{accepted_donor.get('id')}/reject"
-
-            donor_email_html = f"""
+            # Send donor notification email using SendGrid
+            donor_html = f"""
             <html>
             <body style="font-family: Arial, sans-serif; padding: 20px;">
                 <h2 style="color: #d32f2f;">New Blood/Plasma Request</h2>
@@ -1321,14 +1332,14 @@ def submit_request():
                 <table cellspacing="0" cellpadding="0">
                   <tr>
                     <td style="padding: 10px;">
-                      <a href="{accept_url}" 
+                      <a href="{request.url_root}donor_response/{request_id}/{accepted_donor.get('id')}/accept" 
                          style="background-color: #28a745; color: white; padding: 12px 25px; 
                                 text-decoration: none; border-radius: 5px; font-weight: bold;">
                          ✅ Accept Request
                       </a>
                     </td>
                     <td style="padding: 10px;">
-                      <a href="{reject_url}" 
+                      <a href="{request.url_root}donor_response/{request_id}/{accepted_donor.get('id')}/reject" 
                          style="background-color: #dc3545; color: white; padding: 12px 25px; 
                                 text-decoration: none; border-radius: 5px; font-weight: bold;">
                          ❌ Reject Request
@@ -1340,17 +1351,14 @@ def submit_request():
             </html>
             """
             
-            # Send email asynchronously (non-blocking)
-            send_email_async(
-                to_email=accepted_donor["email"],
-                subject="🩸 New Blood/Plasma Request",
-                html_body=donor_email_html
+            send_email_threaded(
+                accepted_donor["email"],
+                "🩸 New Blood/Plasma Request",
+                donor_html
             )
-
         else:
             print("⚠️ No eligible donors found")
 
-        # Always return JSON immediately (don't wait for email)
         return jsonify({
             "status": "success",
             "message": "Request submitted successfully",
