@@ -44,6 +44,7 @@ firebase_json = json.loads(firebase_json_str)
 # Initialize Firebase
 cred = credentials.Certificate(firebase_json)
 firebase_admin.initialize_app(cred)
+db = firestore.client()
 
 app = Flask(__name__)
 app.secret_key = "plasmo_secret_key"  # consider moving to env var
