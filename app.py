@@ -27,7 +27,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from dotenv import load_dotenv
 import socket  # Add this with other imports
-
+import threading
 # Allow HTTP for local OAuth testing (never do this in production)
 # os.environ.setdefault("OAUTHLIB_INSECURE_TRANSPORT", "1")
 if os.environ.get("FLASK_ENV") == "development":
@@ -449,6 +449,45 @@ def get_verified_users_from_firestore():
             data["location"] = location
             users_list.append(data)
     return users_list
+
+def send_email_async(to_email, subject, html_body, timeout=25):
+    """
+    Send email in a thread-safe way with timeout protection.
+    Returns immediately to prevent worker timeout.
+    """
+    def _send():
+        try:
+            print(f"📧 Starting email send to {to_email}")
+            
+            msg = MIMEMultipart("alternative")
+            msg["Subject"] = subject
+            msg["From"] = EMAIL_ADDRESS
+            msg["To"] = to_email
+            msg.attach(MIMEText(html_body, "html"))
+            
+            # Create SSL context with timeout
+            context = ssl.create_default_context()
+            
+            # Use timeout to prevent hanging
+            with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context, timeout=timeout) as server:
+                server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
+                server.sendmail(EMAIL_ADDRESS, to_email, msg.as_string())
+            
+            print(f"✅ Email sent successfully to {to_email}")
+            
+        except smtplib.SMTPException as e:
+            print(f"❌ SMTP Error sending to {to_email}: {str(e)}")
+        except socket.timeout:
+            print(f"⏱️ Email send timeout for {to_email}")
+        except Exception as e:
+            print(f"❌ Unexpected error sending email to {to_email}: {str(e)}")
+            import traceback
+            traceback.print_exc()
+    
+    # Start in daemon thread so it doesn't block
+    thread = threading.Thread(target=_send, daemon=True)
+    thread.start()
+    return thread
 
 # =========================================
 # ---------------- ROUTES -----------------
@@ -1182,48 +1221,9 @@ from datetime import datetime
 
 # Replace your email-sending routes with these fixed versions
 
-import threading
+
 import time
 
-# Helper function to send emails with timeout protection
-def send_email_async(to_email, subject, html_body, timeout=25):
-    """
-    Send email in a thread-safe way with timeout protection.
-    Returns immediately to prevent worker timeout.
-    """
-    def _send():
-        try:
-            print(f"📧 Starting email send to {to_email}")
-            
-            msg = MIMEMultipart("alternative")
-            msg["Subject"] = subject
-            msg["From"] = EMAIL_ADDRESS
-            msg["To"] = to_email
-            msg.attach(MIMEText(html_body, "html"))
-            
-            # Create SSL context with timeout
-            context = ssl.create_default_context()
-            
-            # Use timeout to prevent hanging
-            with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context, timeout=timeout) as server:
-                server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
-                server.sendmail(EMAIL_ADDRESS, to_email, msg.as_string())
-            
-            print(f"✅ Email sent successfully to {to_email}")
-            
-        except smtplib.SMTPException as e:
-            print(f"❌ SMTP Error sending to {to_email}: {str(e)}")
-        except socket.timeout:
-            print(f"⏱️ Email send timeout for {to_email}")
-        except Exception as e:
-            print(f"❌ Unexpected error sending email to {to_email}: {str(e)}")
-            import traceback
-            traceback.print_exc()
-    
-    # Start in daemon thread so it doesn't block
-    thread = threading.Thread(target=_send, daemon=True)
-    thread.start()
-    return thread
 
 
 @app.route("/submit_request", methods=["POST"])
@@ -1589,45 +1589,6 @@ def get_request(request_id):
     if not req_doc.exists:
         return jsonify({"status": "error", "message": "Request not found"})
     return jsonify({"status": "success", "request": req_doc.to_dict()})
-
-@app.route("/send_confirmation_email/<request_id>", methods=["POST"])
-def send_confirmation_email(request_id):
-    try:
-        request_ref = db.collection(get_request_collection()).document(request_id)
-        request_doc = request_ref.get()
-        if not request_doc.exists:
-            return jsonify({"status": "error", "message": "Request not found"}), 404
-
-        request_data = request_doc.to_dict()
-        donor = request_data.get("accepted_donor")
-        if not donor:
-            return jsonify({"status": "error", "message": "No donor assigned"}), 400
-
-        # Send email
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = "✅ Donation Confirmed"
-        msg["From"] = EMAIL_ADDRESS
-        msg["To"] = donor["email"]
-
-        html = f"""
-        <html>
-        <body>
-            <h2>Thank You, {donor.get('name', 'Donor')} ❤️</h2>
-            <p>You have <strong>accepted</strong> the blood/plasma request.</p>
-            <p><strong>Patient:</strong> {request_data.get('patient_name')}</p>
-            <p><strong>Blood/Plasma Group Needed:</strong> {request_data.get('blood_group')}</p>
-        </body>
-        </html>
-        """
-        msg.attach(MIMEText(html, "html"))
-
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-            server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
-            server.sendmail(EMAIL_ADDRESS, donor["email"], msg.as_string())
-
-        return jsonify({"status": "success", "message": "Confirmation email sent"})
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
 
 
 if __name__ == "__main__":
