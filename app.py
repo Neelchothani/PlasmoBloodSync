@@ -505,22 +505,29 @@ def send_email_async(to_email, subject, html_body, timeout=25):
     return thread
 
 def send_email_blocking(to_email, subject, html_body):
-    """Send email using SendGrid (works on Render)"""
+    """Send email using Gmail SMTP (reliable for Render)"""
     try:
-        message = Mail(
-            from_email=SENDGRID_FROM_EMAIL,
-            to_emails=To(to_email),
-            subject=subject,
-            html_content=html_body
-        )
+        print(f"📧 Sending email to {to_email}")
         
-        sg = SendGridAPIClient(SENDGRID_API_KEY)
-        response = sg.send(message)
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = f"PlasmoBlood Sync <{EMAIL_ADDRESS}>"
+        msg["To"] = to_email
+        msg.attach(MIMEText(html_body, "html"))
         
-        print(f"✅ Email sent to {to_email}: {response.status_code}")
+        context = ssl.create_default_context()
+        
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context, timeout=15) as server:
+            server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
+            server.sendmail(EMAIL_ADDRESS, to_email, msg.as_string())
+        
+        print(f"✅ Email sent successfully to {to_email}")
         return True
+        
     except Exception as e:
         print(f"❌ Error sending email to {to_email}: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return False
     
 def send_email_threaded(to_email, subject, html_body):
@@ -1604,10 +1611,27 @@ def update_location():
 
 @app.route("/get_request/<request_id>")
 def get_request(request_id):
-    req_doc = db.collection("blood_requests").document(request_id).get()
-    if not req_doc.exists:
-        return jsonify({"status": "error", "message": "Request not found"})
-    return jsonify({"status": "success", "request": req_doc.to_dict()})
+    try:
+        # Get the correct collection based on donation type
+        collection = get_request_collection()
+        req_doc = db.collection(collection).document(request_id).get()
+        
+        if not req_doc.exists:
+            return jsonify({"status": "error", "message": "Request not found"}), 404
+        
+        request_data = req_doc.to_dict()
+        
+        # Convert Firestore timestamp to ISO string if needed
+        if "created_at" in request_data:
+            created_at = request_data["created_at"]
+            if hasattr(created_at, "timestamp"):
+                request_data["created_at"] = created_at.isoformat()
+        
+        return jsonify({"status": "success", "request": request_data})
+        
+    except Exception as e:
+        print(f"❌ Error in get_request: {str(e)}")
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 
 if __name__ == "__main__":

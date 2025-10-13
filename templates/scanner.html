@@ -1,214 +1,232 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="utf-8">
-<title>Blood Request Scanner</title>
-<style>
-body { 
-    text-align: center; 
-    font-family: sans-serif; 
-    background: #f0f0f0; 
-    color: #000; 
-    padding: 20px;
-}
-#radar { 
-    width: 300px; 
-    height: 300px; 
-    border-radius: 50%; 
-    margin: 50px auto; 
-    border: 5px solid #00bfff; 
-    position: relative; 
-    overflow: hidden; 
-}
-.pulse { 
-    width: 100%; 
-    height: 100%; 
-    border-radius: 50%; 
-    background: rgba(0,191,255,0.2); 
-    position: absolute; 
-    top: 0; 
-    left: 0; 
-    animation: pulse 2s infinite; 
-}
-@keyframes pulse { 
-    0% {transform: scale(0.5); opacity: 0.7} 
-    50% {transform: scale(1); opacity: 0.3} 
-    100% {transform: scale(0.5); opacity: 0.7} 
-}
-#donorInfo { 
-    margin-top: 20px; 
-    font-size: 18px; 
-    color: #000;
-    padding: 20px;
-    background: white;
-    border-radius: 5px;
-    display: none;
-}
-#donorInfo.show { 
-    display: block;
-}
-#donorInfo h3 { color: #28a745; }
-#donorInfo p { color: #333; margin: 8px 0; }
-#nearbyList { 
-    margin-top: 20px; 
-    text-align: left; 
-    max-width: 500px; 
-    margin-left: auto; 
-    margin-right: auto; 
-}
-#nearbyList div { 
-    padding: 12px; 
-    border: 1px solid #ddd; 
-    margin: 8px 0;
-    border-radius: 5px;
-    background: white;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-#nearbyList button {
-    padding: 8px 15px;
-    background: #28a745;
-    color: white;
-    border: none;
-    border-radius: 3px;
-    cursor: pointer;
-}
-#nearbyList button:hover {
-    background: #218838;
-}
-.loading {
-    color: #666;
-    font-size: 16px;
-}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scanning for Donors</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+        }
+
+        .scanner-container {
+            text-align: center;
+            padding: 40px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .scanner-icon {
+            font-size: 80px;
+            animation: pulse 2s ease-in-out infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+
+        h1 {
+            font-size: 28px;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .status-message {
+            font-size: 18px;
+            margin-bottom: 25px;
+            opacity: 0.9;
+        }
+
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .countdown {
+            font-size: 48px;
+            font-weight: bold;
+            margin: 20px 0;
+            color: #ffd700;
+        }
+
+        .donor-found {
+            background: rgba(40, 167, 69, 0.2);
+            border: 2px solid #28a745;
+            border-radius: 15px;
+            padding: 25px;
+            margin-top: 25px;
+            display: none;
+        }
+
+        .donor-found h2 {
+            color: #90ee90;
+            margin-bottom: 15px;
+        }
+
+        .donor-info {
+            text-align: left;
+            margin: 10px 0;
+            font-size: 16px;
+        }
+
+        .donor-info strong {
+            color: #ffd700;
+        }
+
+        .close-btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+            color: white;
+            padding: 12px 30px;
+            font-size: 16px;
+            border-radius: 25px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: transform 0.2s;
+        }
+
+        .close-btn:hover {
+            transform: scale(1.05);
+        }
+    </style>
 </head>
 <body>
-<h2>Searching for Donors...</h2>
-<div id="radar"><div class="pulse"></div></div>
-<audio id="alertSound" src="https://www.soundjay.com/buttons/beep-07.mp3"></audio>
-
-<div id="donorInfo"></div>
-<div id="nearbyList"></div>
-<div id="loading" class="loading">Scanning for nearby donors...</div>
-
-<script>
-const requestId = "{{ request_id }}";
-const donorInfoDiv = document.getElementById("donorInfo");
-const nearbyListDiv = document.getElementById("nearbyList");
-const loadingDiv = document.getElementById("loading");
-const alertSound = document.getElementById("alertSound");
-
-// Show donor info when someone accepts
-function showDonorInfo(donor) {
-    donorInfoDiv.innerHTML = `
-        <h3>✅ Donor Accepted Your Request!</h3>
-        <p><strong>Donor Name:</strong> ${donor.name || 'N/A'}</p>
-        <p><strong>Email:</strong> ${donor.email || 'N/A'}</p>
-        <p><strong>Phone:</strong> ${donor.phone || 'N/A'}</p>
-        <p style="margin-top: 15px; color: #666;">A confirmation email has been sent to the donor.</p>
-    `;
-    donorInfoDiv.classList.add("show");
-    loadingDiv.style.display = "none";
-    nearbyListDiv.innerHTML = "";
-    alertSound.play();
-    document.body.style.background = "#d4edda";
-    document.querySelector("#radar .pulse").style.background = "rgba(0,200,0,0.4)";
-}
-
-// Display nearby donors list
-function displayNearbyUsers(users){
-    loadingDiv.style.display = "none";
-    if(users.length === 0) {
-        nearbyListDiv.innerHTML = "<p style='color: #666;'>No donors found within 10km</p>";
-        return;
-    }
-    nearbyListDiv.innerHTML = users.map(u => `
-        <div>
-            <span>${u.name} (${u.distance} km away)</span>
-            <button onclick="acceptRequest('${u.id}')">Accept</button>
+    <div class="scanner-container">
+        <div class="scanner-icon">🔍</div>
+        <h1>Scanning for Nearby Donors</h1>
+        <p class="status-message" id="statusMessage">Looking for eligible donors in your area...</p>
+        <div class="spinner" id="spinner"></div>
+        
+        <div class="countdown" id="countdown" style="display: none;">10</div>
+        
+        <div class="donor-found" id="donorFound">
+            <h2>✅ Donor Found!</h2>
+            <div class="donor-info">
+                <strong>Name:</strong> <span id="donorName">-</span>
+            </div>
+            <div class="donor-info">
+                <strong>Blood Group:</strong> <span id="donorBloodGroup">-</span>
+            </div>
+            <div class="donor-info">
+                <strong>Phone:</strong> <span id="donorPhone">-</span>
+            </div>
+            <div class="donor-info">
+                <strong>Email:</strong> <span id="donorEmail">-</span>
+            </div>
+            <p style="margin-top: 15px; opacity: 0.8;">
+                📧 A notification has been sent to the donor
+            </p>
         </div>
-    `).join("");
-}
 
-// Accept request via API
-async function acceptRequest(userId){
-    const res = await fetch(`/accept-request-api/${requestId}`, {
-        method: "POST",
-        headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({user_id: userId})
-    });
-    const data = await res.json();
-    if(data.status === "success"){
-        showDonorInfo({name: data.accepted_user});
-    } else {
-        alert("Error: " + data.message);
-    }
-}
+        <button class="close-btn" id="closeBtn" style="display: none;" onclick="window.close()">
+            Close Window
+        </button>
+    </div>
 
-// Scan nearby users using admin's real-time location
-function scanNearby(){
-    if(!navigator.geolocation){
-        alert("Geolocation not supported!");
-        loadingDiv.style.display = "none";
-        return;
-    }
+    <script>
+        const requestId = "{{ request_id }}";
+        let countdownValue = 10;
+        let countdownInterval;
 
-    navigator.geolocation.getCurrentPosition(async (pos) => {
-        const {latitude, longitude} = pos.coords;
+        // Start countdown and polling
+        function startCountdown() {
+            const countdownEl = document.getElementById('countdown');
+            countdownEl.style.display = 'block';
+            
+            countdownInterval = setInterval(() => {
+                countdownValue--;
+                countdownEl.textContent = countdownValue;
+                
+                if (countdownValue <= 0) {
+                    clearInterval(countdownInterval);
+                    window.close();
+                    // Fallback if window.close() doesn't work
+                    setTimeout(() => {
+                        window.location.href = '/dashboard';
+                    }, 500);
+                }
+            }, 1000);
+        }
 
-        try {
-            const res = await fetch("/scan_nearby_users", {
-                method: "POST",
-                headers: {"Content-Type":"application/json"},
-                body: JSON.stringify({lat: latitude, lng: longitude, request_id: requestId})
-            });
+        // Poll for request status
+        function checkRequestStatus() {
+            fetch(`/get_request/${requestId}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        const request = data.request;
+                        
+                        if (request.status === 'accepted' && request.accepted_donor) {
+                            showDonorFound(request.accepted_donor);
+                            startCountdown();
+                        } else if (request.status === 'rejected') {
+                            document.getElementById('statusMessage').textContent = 
+                                '❌ Request was declined. Looking for other donors...';
+                        } else {
+                            // Still pending, check again in 2 seconds
+                            setTimeout(checkRequestStatus, 2000);
+                        }
+                    }
+                })
+                .catch(err => {
+                    console.error('Error checking status:', err);
+                    setTimeout(checkRequestStatus, 3000);
+                });
+        }
 
-            const data = await res.json();
-            if(data.status === "success"){
-                displayNearbyUsers(data.nearby_users);
-            } else {
-                loadingDiv.innerHTML = "Error: " + (data.message || "Unknown error");
+        function showDonorFound(donor) {
+            document.getElementById('spinner').style.display = 'none';
+            document.getElementById('statusMessage').style.display = 'none';
+            
+            const donorFoundDiv = document.getElementById('donorFound');
+            donorFoundDiv.style.display = 'block';
+            
+            document.getElementById('donorName').textContent = donor.name || 'N/A';
+            document.getElementById('donorBloodGroup').textContent = donor.blood_group || 'Unknown';
+            document.getElementById('donorPhone').textContent = donor.phone || 'N/A';
+            document.getElementById('donorEmail').textContent = donor.email || 'N/A';
+            
+            document.getElementById('closeBtn').style.display = 'inline-block';
+        }
+
+        // Start polling when page loads
+        checkRequestStatus();
+
+        // Auto-close after 30 seconds if no response (safety timeout)
+        setTimeout(() => {
+            if (countdownValue === 10) { // Countdown hasn't started yet
+                alert('No response received. Redirecting to dashboard...');
+                window.location.href = '/dashboard';
             }
-        } catch(err) {
-            console.error(err);
-            loadingDiv.innerHTML = "Error scanning for donors. Please try again.";
-        }
-    }, (err) => { 
-        console.error(err); 
-        loadingDiv.innerHTML = "Please enable location access to find donors";
-    });
-}
-
-// Check if donor already accepted (polling or real-time)
-async function checkForAcceptedDonor() {
-    try {
-        const res = await fetch(`/get_request/${requestId}`);
-        const data = await res.json();
-        
-        if(data.status === "success" && data.request.status === "accepted") {
-            showDonorInfo(data.request.accepted_donor);
-            return true;
-        }
-    } catch(err) {
-        console.error("Error checking request status:", err);
-    }
-    return false;
-}
-
-// Initialize on page load
-document.addEventListener("DOMContentLoaded", async () => {
-    // Check if already accepted
-    const alreadyAccepted = await checkForAcceptedDonor();
-    
-    if(!alreadyAccepted) {
-        // Start scanning for donors
-        scanNearby();
-        
-        // Poll every 5 seconds for acceptance
-        setInterval(checkForAcceptedDonor, 5000);
-    }
-});
-</script>
+        }, 30000);
+    </script>
 </body>
 </html>
