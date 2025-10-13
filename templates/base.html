@@ -40,6 +40,105 @@
   </style>
 </head>
 <body class="bg-white dark:bg-dark text-black dark:text-white min-h-screen font-sans transition-all duration-300">
+  
+  <!-- Location Permission Modal -->
+  <div id="locationModal" style="
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      z-index: 9999;
+      justify-content: center;
+      align-items: center;
+  ">
+      <div style="
+          background: white;
+          border-radius: 15px;
+          padding: 40px;
+          max-width: 500px;
+          width: 90%;
+          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+          text-align: center;
+      ">
+          <div style="font-size: 48px; margin-bottom: 20px;">📍</div>
+          
+          <h2 style="
+              color: #333;
+              margin-bottom: 15px;
+              font-size: 24px;
+          ">Enable Location Services</h2>
+          
+          <p style="
+              color: #666;
+              margin-bottom: 20px;
+              font-size: 16px;
+              line-height: 1.6;
+          ">
+              We need your location to match you with nearby donation requests and make our service more effective.
+              <br><br>
+              <strong>Your privacy is important:</strong> Your location is only shared with the app and never sold or shared with third parties.
+          </p>
+          
+          <div id="locationStatus" style="
+              background: #f0f0f0;
+              padding: 12px;
+              border-radius: 8px;
+              margin-bottom: 20px;
+              font-size: 14px;
+              color: #666;
+              min-height: 40px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+          ">
+              Ready to enable location
+          </div>
+          
+          <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+              <button id="enableLocationBtn" style="
+                  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                  color: white;
+                  border: none;
+                  padding: 12px 30px;
+                  border-radius: 8px;
+                  font-size: 16px;
+                  font-weight: bold;
+                  cursor: pointer;
+                  transition: transform 0.2s;
+                  min-width: 150px;
+              " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                  ✅ Enable Location
+              </button>
+              
+              <button id="skipLocationBtn" style="
+                  background: #e0e0e0;
+                  color: #333;
+                  border: none;
+                  padding: 12px 30px;
+                  border-radius: 8px;
+                  font-size: 16px;
+                  font-weight: bold;
+                  cursor: pointer;
+                  transition: transform 0.2s;
+                  min-width: 150px;
+              " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                  ⏭️ Skip for Now
+              </button>
+          </div>
+          
+          <p style="
+              font-size: 12px;
+              color: #999;
+              margin-top: 15px;
+          ">
+              You can enable location anytime in settings
+          </p>
+      </div>
+  </div>
+
   <div class="flex">
     <!-- Sidebar -->
     <aside class="w-64 min-h-screen bg-gray-100 dark:bg-lightDark text-black dark:text-white shadow-lg border-r border-gray-300 dark:border-gray-700 hidden md:block text-sm">
@@ -56,8 +155,6 @@
   <i data-lucide="home"></i> Home
 </a>
 {% endif %}
-
-
 
         {% if session.get('role') != 'admin' %}
         <a href="/register" class="flex items-center px-6 py-3 transition {{ 'bg-gray-200 dark:bg-gray-700 font-bold rounded-xl' if request.path == '/register' else 'hover:bg-gray-200 dark:hover:bg-gray-700' }}">
@@ -119,7 +216,6 @@
   </div>
 </div>
 
-
               <a href="/settings" class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700">⚙️ Settings</a>
               <a href="/signout" class="block px-4 py-2 text-red-500 hover:bg-gray-100 dark:hover:bg-gray-700">🚪 Sign Out</a>
             </div>
@@ -139,20 +235,20 @@
       <!-- Main Content -->
       <main class="p-8 pt-12 leading-relaxed tracking-wide text-base space-y-16">
 
-        <!-- 🔵 Welcome Alert Box -->
+        <!-- Welcome Alert Box -->
         {% if session.get('email') and session.get('role') == 'user' and request.path == '/' %}
         <div class="max-w-4xl mx-auto mb-8 animate-fade-in-down">
         <div class="flex items-center gap-4 px-6 py-5 bg-gradient-to-r from-blue-800 to-indigo-800 text-white rounded-xl shadow-lg border border-blue-400/30">
         <div class="text-3xl">👋</div>
         <div>
           <h2 class="text-xl font-bold leading-tight tracking-wide">Welcome back, {{ session['username'] | capitalize }}!</h2>
-          <p class="text-sm text-blue-100 mt-1">We're glad to see you again. Let’s save more lives together!</p>
+          <p class="text-sm text-blue-100 mt-1">We're glad to see you again. Let's save more lives together!</p>
         </div>
         </div>
         </div>
 {% endif %}
 
-        <!-- 📋 User Questionnaire -->
+        <!-- User Questionnaire -->
         {% if session.get('email') and session.get('role') == 'user' and request.path == '/' %}
         <div class="flex flex-col items-center justify-center pt-12 pb-16 px-4 space-y-6 bg-amber-100 dark:bg-slate-800 rounded-xl shadow-md mx-auto max-w-2xl">
           <h2 class="text-3xl font-extrabold text-center text-accent dark:text-yellow-400 tracking-wide">📋 User Questionnaire</h2>
@@ -168,7 +264,6 @@
         </div>
         {% endif %}
         
-
         {% block content %}{% endblock %}
       </main>
     </div>
@@ -184,6 +279,7 @@
       const toggleBlood = document.getElementById("toggleBlood");
       const togglePlasma = document.getElementById("togglePlasma");
 
+      // Account dropdown
       accountBtn?.addEventListener("click", () => {
         accountDropdown?.classList.toggle("hidden");
         dropdownArrow?.classList.toggle("rotate-180");
@@ -195,22 +291,23 @@
           dropdownArrow?.classList.remove("rotate-180");
         }
       });
+
+      // My Account submenu
       const myAccountBtn = document.getElementById("myAccountBtn");
-const myAccountMenu = document.getElementById("myAccountMenu");
+      const myAccountMenu = document.getElementById("myAccountMenu");
 
-myAccountBtn?.addEventListener("click", (e) => {
-  e.stopPropagation();
-  myAccountMenu.classList.toggle("hidden");
-});
+      myAccountBtn?.addEventListener("click", (e) => {
+        e.stopPropagation();
+        myAccountMenu.classList.toggle("hidden");
+      });
 
-// Close on outside click
-document.addEventListener("click", (e) => {
-  if (!myAccountMenu.contains(e.target) && !myAccountBtn.contains(e.target)) {
-    myAccountMenu.classList.add("hidden");
-  }
-});
+      document.addEventListener("click", (e) => {
+        if (!myAccountMenu.contains(e.target) && !myAccountBtn.contains(e.target)) {
+          myAccountMenu.classList.add("hidden");
+        }
+      });
 
-
+      // Theme toggle
       themeToggle?.addEventListener("click", () => {
         document.documentElement.classList.toggle("dark");
         localStorage.setItem("theme", document.documentElement.classList.contains("dark") ? "dark" : "light");
@@ -220,6 +317,7 @@ document.addEventListener("click", (e) => {
       if (storedTheme === "light") document.documentElement.classList.remove("dark");
       else document.documentElement.classList.add("dark");
 
+      // Blood/Plasma toggle
       let currentType = 'Blood';
       function walkDOMAndReplace(node, fromText, toText) {
         if (node.nodeType === 3 && !node.parentElement.closest('.no-replace')) {
@@ -255,42 +353,151 @@ document.addEventListener("click", (e) => {
       if (savedType && savedType !== "Blood") switchType(savedType);
 
       lucide.createIcons();
-    });
-    document.addEventListener("DOMContentLoaded", () => {
-  async function updateUserLocation() {
-    if (!navigator.geolocation) {
-      console.warn("Geolocation not supported by browser.");
-      return;
-    }
 
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const { latitude, longitude } = pos.coords;
-        console.log("📍 Sending location:", latitude, longitude);
+      // ========== LOCATION MODAL LOGIC ==========
+      const locationModal = document.getElementById('locationModal');
+      const enableLocationBtn = document.getElementById('enableLocationBtn');
+      const skipLocationBtn = document.getElementById('skipLocationBtn');
+      const locationStatus = document.getElementById('locationStatus');
 
-        try {
-          const res = await fetch("/update_location", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ lat: latitude, lng: longitude })
-          });
-
-          const data = await res.json();
-          console.log("✅ Location update:", data);
-        } catch (err) {
-          console.error("❌ Failed to send location:", err);
+      function checkAndPromptLocation() {
+        // Only check if user is logged in (not on signin/signup pages)
+        const path = window.location.pathname;
+        if (!path.includes('/signin') && !path.includes('/signup') && !path.includes('/dev-login')) {
+          fetch('/check_location')
+            .then(res => res.json())
+            .then(data => {
+              if (data.status === 'success' && !data.has_location) {
+                console.log('📍 No location found, showing modal');
+                showLocationModal();
+              } else if (data.status === 'success' && data.has_location) {
+                console.log('✅ User has location:', data.lat, data.lng);
+              }
+            })
+            .catch(err => console.error('Error checking location:', err));
         }
-      },
-      (err) => {
-        console.error("Location error:", err);
-        alert("Please allow location access to continue.");
       }
-    );
-  }
 
-  const user = localStorage.getItem("user");
-  if (user) updateUserLocation();
-});
-</script>
+      function showLocationModal() {
+        locationModal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+      }
+
+      function hideLocationModal() {
+        locationModal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+      }
+
+      enableLocationBtn.addEventListener('click', function() {
+        enableLocationBtn.disabled = true;
+        enableLocationBtn.textContent = '⏳ Getting location...';
+        locationStatus.textContent = 'Requesting location...';
+        locationStatus.style.background = '#fff3cd';
+        locationStatus.style.color = '#856404';
+
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            function(position) {
+              const lat = position.coords.latitude;
+              const lng = position.coords.longitude;
+              const accuracy = position.coords.accuracy;
+
+              console.log(`📍 Location obtained: ${lat}, ${lng} (accuracy: ${accuracy}m)`);
+
+              fetch('/store_location', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ lat, lng })
+              })
+              .then(res => res.json())
+              .then(data => {
+                if (data.status === 'success') {
+                  console.log('✅ Location saved to Firebase');
+                  locationStatus.textContent = '✅ Location saved successfully!';
+                  locationStatus.style.background = '#d4edda';
+                  locationStatus.style.color = '#155724';
+                  
+                  setTimeout(() => {
+                    hideLocationModal();
+                  }, 1500);
+                } else {
+                  throw new Error(data.message);
+                }
+              })
+              .catch(err => {
+                console.error('❌ Error saving location:', err);
+                locationStatus.textContent = '❌ Error saving location: ' + err.message;
+                locationStatus.style.background = '#f8d7da';
+                locationStatus.style.color = '#721c24';
+                enableLocationBtn.disabled = false;
+                enableLocationBtn.textContent = '✅ Enable Location';
+              });
+            },
+            function(error) {
+              console.error('❌ Geolocation error:', error);
+              
+              let errorMsg = 'Unable to get location';
+              switch(error.code) {
+                case error.PERMISSION_DENIED:
+                  errorMsg = 'Location permission denied. Please enable in settings.';
+                  break;
+                case error.POSITION_UNAVAILABLE:
+                  errorMsg = 'Location information unavailable';
+                  break;
+                case error.TIMEOUT:
+                  errorMsg = 'Location request timeout';
+                  break;
+              }
+              
+              locationStatus.textContent = '❌ ' + errorMsg;
+              locationStatus.style.background = '#f8d7da';
+              locationStatus.style.color = '#721c24';
+              enableLocationBtn.disabled = false;
+              enableLocationBtn.textContent = '✅ Enable Location';
+            },
+            {
+              enableHighAccuracy: true,
+              timeout: 10000,
+              maximumAge: 0
+            }
+          );
+        } else {
+          locationStatus.textContent = '❌ Geolocation not supported by your browser';
+          locationStatus.style.background = '#f8d7da';
+          locationStatus.style.color = '#721c24';
+          enableLocationBtn.disabled = false;
+          enableLocationBtn.textContent = '✅ Enable Location';
+        }
+      });
+
+      skipLocationBtn.addEventListener('click', function() {
+        console.log('⏭️ User skipped location');
+        hideLocationModal();
+        sessionStorage.setItem('locationSkipped', 'true');
+      });
+
+      // Prevent closing modal by clicking outside
+      locationModal.addEventListener('click', function(e) {
+        if (e.target === locationModal) {
+          // Keep modal open
+        }
+      });
+
+      // Check location on page load
+      checkAndPromptLocation();
+
+      // Periodic location check (every 5 minutes)
+      setInterval(function() {
+        fetch('/check_location')
+          .then(res => res.json())
+          .then(data => {
+            if (data.status === 'success' && !data.has_location) {
+              console.log('📍 Reminder: Location still missing');
+            }
+          })
+          .catch(err => console.error('Error in periodic location check:', err));
+      }, 5 * 60 * 1000);
+    });
+  </script>
 </body>
 </html>

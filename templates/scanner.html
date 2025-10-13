@@ -29,146 +29,92 @@
             border-radius: 20px;
             backdrop-filter: blur(10px);
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-            max-width: 600px;
+            max-width: 700px;
             width: 100%;
         }
 
-        /* Radar Container */
-        .radar-container {
-            position: relative;
-            width: 250px;
-            height: 250px;
-            margin: 30px auto;
+        .scanner-header {
+            margin-bottom: 30px;
         }
 
-        .radar-circle {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-        }
-
-        .radar-circle:nth-child(1) {
-            width: 250px;
-            height: 250px;
-        }
-
-        .radar-circle:nth-child(2) {
-            width: 180px;
-            height: 180px;
-            animation: pulse-ring 2s ease-in-out infinite;
-        }
-
-        .radar-circle:nth-child(3) {
-            width: 110px;
-            height: 110px;
-            animation: pulse-ring 2s ease-in-out 0.5s infinite;
-        }
-
-        @keyframes pulse-ring {
-            0%, 100% {
-                opacity: 1;
-                transform: translate(-50%, -50%) scale(1);
-            }
-            50% {
-                opacity: 0.5;
-                transform: translate(-50%, -50%) scale(1.1);
-            }
-        }
-
-        /* Center dot */
-        .radar-center {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 20px;
-            height: 20px;
-            background: #fff;
-            border-radius: 50%;
-            box-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
-            animation: pulse-dot 1.5s ease-in-out infinite;
-        }
-
-        @keyframes pulse-dot {
-            0%, 100% {
-                transform: translate(-50%, -50%) scale(1);
-                opacity: 1;
-            }
-            50% {
-                transform: translate(-50%, -50%) scale(1.3);
-                opacity: 0.7;
-            }
-        }
-
-        /* Radar sweep line */
-        .radar-sweep {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 125px;
-            height: 2px;
-            background: linear-gradient(to right, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.8));
-            transform-origin: left center;
-            animation: radar-spin 3s linear infinite;
-        }
-
-        @keyframes radar-spin {
-            0% {
-                transform: rotate(0deg);
-            }
-            100% {
-                transform: rotate(360deg);
-            }
-        }
-
-        /* Blip dots */
-        .radar-blip {
-            position: absolute;
-            width: 10px;
-            height: 10px;
-            background: #00ff00;
-            border-radius: 50%;
-            box-shadow: 0 0 10px #00ff00;
-            animation: blip-fade 2s ease-in-out infinite;
-        }
-
-        .blip1 { top: 30%; left: 70%; animation-delay: 0s; }
-        .blip2 { top: 60%; left: 25%; animation-delay: 0.5s; }
-        .blip3 { top: 75%; left: 65%; animation-delay: 1s; }
-
-        @keyframes blip-fade {
-            0%, 100% { opacity: 0; transform: scale(0.5); }
-            50% { opacity: 1; transform: scale(1.2); }
-        }
-
-        h1 {
+        .scanner-header h1 {
             font-size: 28px;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
             font-weight: 600;
         }
 
         .status-message {
             font-size: 18px;
-            margin-bottom: 20px;
             opacity: 0.9;
-            min-height: 50px;
+            min-height: 40px;
             display: flex;
             align-items: center;
             justify-content: center;
         }
 
-        .countdown {
-            font-size: 72px;
-            font-weight: bold;
-            margin: 20px 0;
-            color: #ffd700;
-            text-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
-            display: none;
+        .scanner-content {
+            display: flex;
+            gap: 30px;
+            align-items: center;
+            margin-bottom: 30px;
         }
 
+        /* Radar Canvas */
+        .radar-wrapper {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+        }
+
+        canvas {
+            width: 280px;
+            height: 280px;
+            display: block;
+        }
+
+        /* Stats Panel */
+        .stats-panel {
+            flex: 1;
+            text-align: left;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(5px);
+        }
+
+        .stat-item {
+            margin: 15px 0;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .stat-item:last-child {
+            border-bottom: none;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            opacity: 0.8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #ffd700;
+            margin-top: 5px;
+        }
+
+        .timer-display {
+            font-size: 36px;
+            font-weight: bold;
+            color: #ff6b6b;
+            text-shadow: 0 0 20px rgba(255, 107, 107, 0.5);
+            margin: 10px 0;
+        }
+
+        /* Donor Found Section */
         .donor-found {
             background: rgba(40, 167, 69, 0.2);
             border: 2px solid #28a745;
@@ -192,26 +138,25 @@
 
         .donor-found h2 {
             color: #90ee90;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
             font-size: 24px;
         }
 
         .donor-info {
             text-align: left;
-            margin: 10px 0;
+            margin: 12px 0;
             font-size: 16px;
-            padding: 8px 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .donor-info:last-of-type {
-            border-bottom: none;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
         }
 
         .donor-info strong {
             color: #ffd700;
-            display: inline-block;
-            min-width: 120px;
+            display: block;
+            font-size: 12px;
+            opacity: 0.8;
+            margin-bottom: 4px;
         }
 
         .notification-badge {
@@ -222,6 +167,24 @@
             padding: 10px 15px;
             margin-top: 15px;
             font-size: 14px;
+        }
+
+        /* No Donor Found */
+        .no-donor-found {
+            background: rgba(220, 53, 69, 0.2);
+            border: 2px solid #dc3545;
+            border-radius: 15px;
+            padding: 25px;
+            margin-top: 25px;
+            display: none;
+            animation: slideIn 0.5s ease-out;
+            text-align: center;
+        }
+
+        .no-donor-found h2 {
+            color: #ff6b6b;
+            margin-bottom: 10px;
+            font-size: 24px;
         }
 
         .close-btn {
@@ -243,7 +206,7 @@
         }
 
         .loading-dots {
-            display: inline-block;
+            display: inline;
         }
 
         .loading-dots span {
@@ -267,46 +230,88 @@
                 opacity: 1;
             }
         }
+
+        @media (max-width: 768px) {
+            .scanner-content {
+                flex-direction: column;
+                gap: 20px;
+            }
+
+            canvas {
+                width: 240px;
+                height: 240px;
+            }
+
+            .scanner-header h1 {
+                font-size: 24px;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="scanner-container">
-        <h1>🔍 Scanning for Nearby Donors</h1>
-        <p class="status-message" id="statusMessage">
-            Searching for eligible donors in your area<span class="loading-dots"><span>.</span><span>.</span><span>.</span></span>
-        </p>
-        
-        <!-- Radar Animation -->
-        <div class="radar-container" id="radarContainer">
-            <div class="radar-circle"></div>
-            <div class="radar-circle"></div>
-            <div class="radar-circle"></div>
-            <div class="radar-center"></div>
-            <div class="radar-sweep"></div>
-            <div class="radar-blip blip1"></div>
-            <div class="radar-blip blip2"></div>
-            <div class="radar-blip blip3"></div>
+        <div class="scanner-header">
+            <h1>🔍 Scanning for Donors</h1>
+            <p class="status-message" id="statusMessage">
+                Broadcasting request to nearby donors<span class="loading-dots"><span>.</span><span>.</span><span>.</span></span>
+            </p>
         </div>
-        
-        <div class="countdown" id="countdown">10</div>
-        
+
+        <div class="scanner-content">
+            <!-- Radar Animation -->
+            <div class="radar-wrapper">
+                <canvas id="radarCanvas" width="280" height="280"></canvas>
+            </div>
+
+            <!-- Stats Panel -->
+            <div class="stats-panel">
+                <div class="stat-item">
+                    <div class="stat-label">Donors Notified</div>
+                    <div class="stat-value" id="donorCount">0</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Responses</div>
+                    <div class="stat-value" id="responseCount">0</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Time Remaining</div>
+                    <div class="timer-display" id="timer">5:00</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label" style="font-size: 12px; margin-top: 10px;">Request ID</div>
+                    <div style="font-size: 12px; opacity: 0.7; word-break: break-all;" id="requestIdDisplay">-</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Donor Found Section -->
         <div class="donor-found" id="donorFound">
             <h2>✅ Donor Found!</h2>
             <div class="donor-info">
-                <strong>Name:</strong> <span id="donorName">-</span>
+                <strong>Name</strong>
+                <span id="donorName">-</span>
             </div>
             <div class="donor-info">
-                <strong>Blood Group:</strong> <span id="donorBloodGroup">-</span>
+                <strong>Blood Group</strong>
+                <span id="donorBloodGroup">-</span>
             </div>
             <div class="donor-info">
-                <strong>Phone:</strong> <span id="donorPhone">-</span>
+                <strong>Phone</strong>
+                <span id="donorPhone">-</span>
             </div>
             <div class="donor-info">
-                <strong>Email:</strong> <span id="donorEmail">-</span>
+                <strong>Email</strong>
+                <span id="donorEmail">-</span>
             </div>
             <div class="notification-badge">
-                📧 Notification sent to donor
+                📧 Notification sent to donor. Closing in <span id="closingIn">10</span>s
             </div>
+        </div>
+
+        <!-- No Donor Found -->
+        <div class="no-donor-found" id="noDonorFound">
+            <h2>⏱️ No Donor Available</h2>
+            <p>No donors accepted the request within 5 minutes. Please try again later.</p>
         </div>
 
         <button class="close-btn" id="closeBtn" onclick="closeWindow()">
@@ -316,56 +321,142 @@
 
     <script>
         const requestId = "{{ request_id }}";
-        let countdownValue = 10;
-        let countdownInterval;
+        const MAX_TIMEOUT = 300000; // 5 minutes in milliseconds
+        const CLOSE_DELAY = 10000; // 10 seconds after donor found
+        
+        let startTime = Date.now();
         let pollingInterval;
+        let timerInterval;
+        let countdownInterval;
+        let donorFound = false;
+        let closingCountdown = 10;
+
+        // Radar animation
+        const canvas = document.getElementById('radarCanvas');
+        const ctx = canvas.getContext('2d');
+        let radarAngle = 0;
+
+        function drawRadar() {
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const maxRadius = 120;
+
+            // Clear canvas
+            ctx.fillStyle = 'rgba(102, 126, 234, 0.1)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw concentric circles
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = 1;
+            for (let i = 1; i <= 4; i++) {
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, (maxRadius / 4) * i, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+
+            // Draw crosshairs
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(centerX - maxRadius, centerY);
+            ctx.lineTo(centerX + maxRadius, centerY);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY - maxRadius);
+            ctx.lineTo(centerX, centerY + maxRadius);
+            ctx.stroke();
+
+            // Draw sweep line
+            ctx.strokeStyle = 'rgba(100, 255, 100, 0.6)';
+            ctx.lineWidth = 2;
+            const endX = centerX + Math.cos(radarAngle) * maxRadius;
+            const endY = centerY + Math.sin(radarAngle) * maxRadius;
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY);
+            ctx.lineTo(endX, endY);
+            ctx.stroke();
+
+            // Draw sweep gradient
+            const gradient = ctx.createLinearGradient(centerX, centerY, endX, endY);
+            gradient.addColorStop(0, 'rgba(100, 255, 100, 0.3)');
+            gradient.addColorStop(1, 'rgba(100, 255, 100, 0)');
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY);
+            ctx.arc(centerX, centerY, maxRadius, radarAngle - 0.3, radarAngle + 0.3);
+            ctx.lineTo(centerX, centerY);
+            ctx.fill();
+
+            // Draw center dot
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 6, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Draw blips (random for visual effect)
+            ctx.fillStyle = 'rgba(100, 255, 100, 0.8)';
+            for (let i = 0; i < 3; i++) {
+                const angle = (radarAngle + (i * Math.PI * 2 / 3)) % (Math.PI * 2);
+                const distance = maxRadius * (0.5 + Math.random() * 0.4);
+                const blipX = centerX + Math.cos(angle) * distance;
+                const blipY = centerY + Math.sin(angle) * distance;
+                ctx.beginPath();
+                ctx.arc(blipX, blipY, 4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            radarAngle += 0.05;
+            requestAnimationFrame(drawRadar);
+        }
+
+        function formatTime(ms) {
+            const totalSeconds = Math.floor(ms / 1000);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        function updateTimer() {
+            const elapsed = Date.now() - startTime;
+            const remaining = MAX_TIMEOUT - elapsed;
+
+            if (remaining <= 0) {
+                clearInterval(timerInterval);
+                clearInterval(pollingInterval);
+                if (!donorFound) {
+                    showNoDonorFound();
+                }
+                return;
+            }
+
+            document.getElementById('timer').textContent = formatTime(remaining);
+        }
 
         function closeWindow() {
+            clearInterval(pollingInterval);
+            clearInterval(timerInterval);
+            clearInterval(countdownInterval);
             window.close();
-            // Fallback if window.close() doesn't work
             setTimeout(() => {
                 window.location.href = '/dashboard';
             }, 500);
         }
 
-        function startCountdown() {
-            const countdownEl = document.getElementById('countdown');
-            const radarContainer = document.getElementById('radarContainer');
-            
-            countdownEl.style.display = 'block';
-            radarContainer.style.display = 'none';
-            
-            countdownInterval = setInterval(() => {
-                countdownValue--;
-                countdownEl.textContent = countdownValue;
-                
-                if (countdownValue <= 0) {
-                    clearInterval(countdownInterval);
-                    clearInterval(pollingInterval);
-                    closeWindow();
-                }
-            }, 1000);
-        }
-
         function checkRequestStatus() {
             fetch(`/get_request/${requestId}`)
                 .then(res => {
-                    if (!res.ok) {
-                        throw new Error(`HTTP ${res.status}`);
-                    }
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
                     return res.json();
                 })
                 .then(data => {
                     if (data.status === 'success') {
                         const request = data.request;
-                        
+
                         if (request.status === 'accepted' && request.accepted_donor) {
+                            donorFound = true;
                             clearInterval(pollingInterval);
                             showDonorFound(request.accepted_donor);
-                            startCountdown();
-                        } else if (request.status === 'rejected') {
-                            document.getElementById('statusMessage').innerHTML = 
-                                '❌ Request declined<span class="loading-dots"><span>.</span><span>.</span><span>.</span></span> Finding another donor';
+                            startCloseCountdown();
                         }
                     }
                 })
@@ -375,7 +466,8 @@
         }
 
         function showDonorFound(donor) {
-            document.getElementById('statusMessage').textContent = '✅ Match Found!';
+            document.getElementById('statusMessage').innerHTML = 
+                '✅ Match Found! Donor has accepted your request.';
             
             const donorFoundDiv = document.getElementById('donorFound');
             donorFoundDiv.style.display = 'block';
@@ -388,18 +480,50 @@
             document.getElementById('closeBtn').style.display = 'inline-block';
         }
 
-        // Start polling every 2 seconds
-        pollingInterval = setInterval(checkRequestStatus, 2000);
-        checkRequestStatus(); // Check immediately
+        function showNoDonorFound() {
+            document.getElementById('statusMessage').textContent = 
+                '⏱️ Time expired. No donors accepted the request.';
+            
+            const noDonorDiv = document.getElementById('noDonorFound');
+            noDonorDiv.style.display = 'block';
+            
+            document.getElementById('closeBtn').style.display = 'inline-block';
+        }
 
-        // Safety timeout: close after 30 seconds if no donor found
+        function startCloseCountdown() {
+            let countdown = 10;
+            document.getElementById('closingIn').textContent = countdown;
+            
+            countdownInterval = setInterval(() => {
+                countdown--;
+                document.getElementById('closingIn').textContent = countdown;
+                
+                if (countdown <= 0) {
+                    clearInterval(countdownInterval);
+                    closeWindow();
+                }
+            }, 1000);
+        }
+
+        // Initialize
+        document.getElementById('requestIdDisplay').textContent = requestId;
+        drawRadar();
+        
+        // Poll server every 2 seconds
+        pollingInterval = setInterval(checkRequestStatus, 2000);
+        checkRequestStatus();
+
+        // Update timer every second
+        timerInterval = setInterval(updateTimer, 1000);
+        updateTimer();
+
+        // Safety: close after MAX_TIMEOUT if nothing happens
         setTimeout(() => {
-            if (countdownValue === 10) {
+            if (!donorFound) {
                 clearInterval(pollingInterval);
-                alert('⏱️ No response received. Redirecting to dashboard...');
-                window.location.href = '/dashboard';
+                showNoDonorFound();
             }
-        }, 30000);
+        }, MAX_TIMEOUT);
     </script>
 </body>
 </html>
