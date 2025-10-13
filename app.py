@@ -505,38 +505,64 @@ def send_email_async(to_email, subject, html_body, timeout=25):
     return thread
 
 def send_email_blocking(to_email, subject, html_body):
-    """Send email using Gmail SMTP (reliable for Render)"""
+    """
+    Send email using SendGrid API (SMTP is blocked on Render free tier)
+    """
     try:
-        print(f"📧 Sending email to {to_email}")
+        # Validate configuration
+        if not SENDGRID_API_KEY or SENDGRID_API_KEY.strip() == "":
+            print(f"❌ SendGrid API key not configured!")
+            print(f"⚠️ Email to {to_email} not sent - configure SENDGRID_API_KEY")
+            return False
+            
+        if not SENDGRID_FROM_EMAIL or SENDGRID_FROM_EMAIL.strip() == "":
+            print(f"❌ SendGrid FROM email not configured!")
+            return False
         
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"] = f"PlasmoBlood Sync <{EMAIL_ADDRESS}>"
-        msg["To"] = to_email
-        msg.attach(MIMEText(html_body, "html"))
+        print(f"📧 Sending email to {to_email} via SendGrid")
         
-        context = ssl.create_default_context()
+        # Create email message
+        message = Mail(
+            from_email=SENDGRID_FROM_EMAIL,
+            to_emails=to_email,
+            subject=subject,
+            html_content=html_body
+        )
         
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context, timeout=15) as server:
-            server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
-            server.sendmail(EMAIL_ADDRESS, to_email, msg.as_string())
+        # Send via SendGrid API
+        sg = SendGridAPIClient(SENDGRID_API_KEY)
+        response = sg.send(message)
         
-        print(f"✅ Email sent successfully to {to_email}")
+        print(f"✅ Email sent to {to_email}: Status {response.status_code}")
         return True
         
     except Exception as e:
-        print(f"❌ Error sending email to {to_email}: {str(e)}")
+        error_msg = str(e)
+        print(f"❌ SendGrid Error for {to_email}: {error_msg}")
+        
+        # Provide helpful error messages
+        if "403" in error_msg or "Forbidden" in error_msg:
+            print("⚠️ ERROR: SendGrid sender email not verified!")
+            print(f"   → Go to: https://app.sendgrid.com/settings/sender_auth/senders")
+            print(f"   → Verify sender: {SENDGRID_FROM_EMAIL}")
+        elif "401" in error_msg or "Unauthorized" in error_msg:
+            print("⚠️ ERROR: Invalid SendGrid API key!")
+            print(f"   → Check your SENDGRID_API_KEY in Render environment variables")
+        
         import traceback
         traceback.print_exc()
         return False
-    
+
 def send_email_threaded(to_email, subject, html_body):
     """Send email in background thread (non-blocking)"""
     def _send():
-        send_email_blocking(to_email, subject, html_body)
+        success = send_email_blocking(to_email, subject, html_body)
+        if not success:
+            print(f"⚠️ Failed to send email to {to_email} - continuing anyway")
     
     thread = threading.Thread(target=_send, daemon=True)
     thread.start()
+    print(f"📤 Email queued for {to_email}")
 # =========================================
 # ---------------- ROUTES -----------------
 # =========================================
@@ -786,10 +812,9 @@ def dashboard():
     if role in ["user", "donor"]:
         return render_template("dashboard.html", request=request)
     elif role == "admin":
-        return redirect(url_for("admin"))
+        return redirect(url_for("admin_home"))  # ✅ Fixed: was "admin"
 
     return redirect(url_for("signin"))
-
 
 # ---------------- GOOGLE SIGN-IN ----------------
 
@@ -1611,28 +1636,53 @@ def update_location():
 
 @app.route("/get_request/<request_id>")
 def get_request(request_id):
+    """
+    Get blood/plasma request status with proper error handling
+    """
     try:
-        # Get the correct collection based on donation type
+        # Get the correct collection based on session donation type
         collection = get_request_collection()
+        
         req_doc = db.collection(collection).document(request_id).get()
         
         if not req_doc.exists:
-            return jsonify({"status": "error", "message": "Request not found"}), 404
+            print(f"⚠️ Request {request_id} not found in {collection}")
+            return jsonify({
+                "status": "error", 
+                "message": "Request not found"
+            }), 404
         
         request_data = req_doc.to_dict()
         
-        # Convert Firestore timestamp to ISO string if needed
+        # Convert Firestore timestamp to ISO string for JSON serialization
         if "created_at" in request_data:
             created_at = request_data["created_at"]
-            if hasattr(created_at, "timestamp"):
+            if hasattr(created_at, "isoformat"):
                 request_data["created_at"] = created_at.isoformat()
+            elif hasattr(created_at, "timestamp"):
+                # Firestore Timestamp object
+                request_data["created_at"] = datetime.fromtimestamp(
+                    created_at.timestamp(), 
+                    tz=timezone.utc
+                ).isoformat()
         
-        return jsonify({"status": "success", "request": request_data})
+        # Log status for debugging
+        status = request_data.get("status", "pending")
+        print(f"📊 Request {request_id} status: {status}")
+        
+        return jsonify({
+            "status": "success", 
+            "request": request_data
+        })
         
     except Exception as e:
-        print(f"❌ Error in get_request: {str(e)}")
-        return jsonify({"status": "error", "message": str(e)}), 500
-
+        print(f"❌ Error in get_request({request_id}): {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "status": "error", 
+            "message": str(e)
+        }), 500
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
