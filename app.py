@@ -71,8 +71,19 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 # -----------------------------------------
 # Google OAuth config
 # -----------------------------------------
+app.config["GOOGLE_CLIENT_ID"] = os.environ.get("GOOGLE_CLIENT_ID")
+app.config["GOOGLE_CLIENT_SECRET"] = os.environ.get("GOOGLE_CLIENT_SECRET")
+
+if not app.config["GOOGLE_CLIENT_ID"]:
+    raise RuntimeError("GOOGLE_CLIENT_ID environment variable is not set!")
+if not app.config["GOOGLE_CLIENT_SECRET"]:
+    raise RuntimeError("GOOGLE_CLIENT_SECRET environment variable is not set!")
+
 SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY")
 SENDGRID_FROM_EMAIL = os.environ.get("SENDGRID_FROM_EMAIL", "noreply@plasmobloodsync.com")
+
+if not SENDGRID_API_KEY:
+    raise RuntimeError("SENDGRID_API_KEY environment variable is not set!")
 EMAIL_ADDRESS = "neelchothani9417@gmail.com"      # Replace with your sender email
 EMAIL_PASSWORD = "kfkq gibg zsis xfao"
 # Comma-separated admin email overrides, e.g. "admin@plasmo.com,owner@acme.com"
