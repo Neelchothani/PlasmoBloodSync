@@ -8,7 +8,7 @@ body {
     text-align: center; 
     font-family: sans-serif; 
     background: #f0f0f0; 
-    color: #000; /* Black text */
+    color: #000; 
 }
 #radar { 
     width: 300px; 
@@ -37,10 +37,12 @@ body {
 #donorInfo { 
     margin-top: 20px; 
     font-size: 18px; 
-    color: #000; /* Black text */
+    color: #000; 
 }
 #donorInfo h3 { color: #000; }
 #donorInfo p { color: #000; }
+#nearbyList { margin-top: 20px; text-align: left; max-width: 400px; margin-left:auto; margin-right:auto; }
+#nearbyList div { padding: 6px 0; border-bottom: 1px solid #ccc; }
 </style>
 </head>
 <body>
@@ -48,6 +50,7 @@ body {
 <div id="radar"><div class="pulse"></div></div>
 <audio id="alertSound" src="https://www.soundjay.com/buttons/beep-07.mp3"></audio>
 <div id="donorInfo"></div>
+<div id="nearbyList"></div>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -63,12 +66,13 @@ const db = firebase.firestore();
 
 const requestId = "{{ request_id }}";  // passed from Flask
 const donorInfoDiv = document.getElementById("donorInfo");
+const nearbyListDiv = document.getElementById("nearbyList");
 const alertSound = document.getElementById("alertSound");
 
 const acceptedDonor = {{ accepted_donor | default({}) | tojson }};
 const requestedGroup = "{{ request.blood_group }}"; // Requested group from Flask
 
-// Function to show donor info and play sound
+// Show donor info & play sound
 function showDonorInfo(donor) {
     donorInfoDiv.innerHTML = `
         <h3>Donor Found!</h3>
@@ -80,34 +84,69 @@ function showDonorInfo(donor) {
     document.querySelector("#radar .pulse").style.background = "rgba(0,200,0,0.4)";
 }
 
-// If donor already exists, show info immediately
-if (acceptedDonor && Object.keys(acceptedDonor).length > 0) {
-    showDonorInfo(acceptedDonor);
-
-    // Send confirmation email after 5 seconds
-    setTimeout(() => {
-        fetch(`/send_confirmation_email/${requestId}`, { method: "POST" })
-        .then(() => {
-            setTimeout(() => { window.location.href = "{{ url_for('admin_home') }}"; }, 1000);
-        });
-    }, 5000);
+// Display nearby donors list with Accept button
+function displayNearbyUsers(users){
+    nearbyListDiv.innerHTML = users.map(u => `
+        <div>
+            ${u.name} (${u.distance} km away)
+            <button onclick="acceptRequest('${u.id}')">Accept</button>
+        </div>
+    `).join("");
 }
 
-// Real-time Firestore listener for updates
-db.collection("blood_requests").doc(requestId)
-  .onSnapshot(doc => {
-      const data = doc.data();
-      if(data && data.status === "accepted" && data.accepted_donor){
-          showDonorInfo(data.accepted_donor);
+// Accept request via API
+async function acceptRequest(userId){
+    const res = await fetch(`/accept-request-api/${requestId}`, {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({user_id: userId})
+    });
+    const data = await res.json();
+    if(data.status === "success"){
+        showDonorInfo({name: data.accepted_user});
+    }
+}
 
-          setTimeout(() => {
-              fetch(`/send_confirmation_email/${requestId}`, { method: "POST" })
-              .then(() => {
-                  setTimeout(() => { window.location.href = "{{ url_for('admin_home') }}"; }, 1000);
-              });
-          }, 5000);
-      }
-  });
+// Scan nearby users using admin's real-time location
+function scanNearby(){
+    if(!navigator.geolocation){
+        alert("Geolocation not supported!");
+        return;
+    }
+
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+        const {latitude, longitude} = pos.coords;
+
+        const res = await fetch("/scan_nearby_users", {
+            method: "POST",
+            headers: {"Content-Type":"application/json"},
+            body: JSON.stringify({lat: latitude, lng: longitude, request_id: requestId})
+        });
+
+        const data = await res.json();
+        if(data.status === "success"){
+            displayNearbyUsers(data.nearby_users);
+        }
+    }, (err) => { console.error(err); alert("Please allow location access!"); });
+}
+
+// Initial scan on page load
+document.addEventListener("DOMContentLoaded", () => {
+    // If a donor is already accepted, show immediately
+    if(acceptedDonor && Object.keys(acceptedDonor).length > 0){
+        showDonorInfo(acceptedDonor);
+    }
+    scanNearby();
+
+    // Firestore real-time listener for updates
+    db.collection("blood_requests").doc(requestId)
+      .onSnapshot(doc => {
+          const data = doc.data();
+          if(data && data.status === "accepted" && data.accepted_donor){
+              showDonorInfo(data.accepted_donor);
+          }
+      });
+});
 </script>
 </body>
 </html>

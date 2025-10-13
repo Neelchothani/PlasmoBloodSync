@@ -256,6 +256,44 @@ document.addEventListener("click", (e) => {
 
       lucide.createIcons();
     });
+    <script>
+document.addEventListener("DOMContentLoaded", () => {
+  async function updateUserLocation() {
+    if (!navigator.geolocation) {
+      console.warn("Geolocation not supported by browser.");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        console.log("📍 Sending location:", latitude, longitude);
+
+        try {
+          const res = await fetch("/update_location", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ lat: latitude, lng: longitude })
+          });
+
+          const data = await res.json();
+          console.log("✅ Location update:", data);
+        } catch (err) {
+          console.error("❌ Failed to send location:", err);
+        }
+      },
+      (err) => {
+        console.error("Location error:", err);
+        alert("Please allow location access to continue.");
+      }
+    );
+  }
+
+  const user = localStorage.getItem("user");
+  if (user) updateUserLocation();
+});
+</script>
+
   </script>
 </body>
 </html>
