@@ -1885,10 +1885,8 @@ def get_top_donors():
                 if user_doc.exists:
                     user_data = user_doc.to_dict()
                     stats["picture"] = user_data.get("picture", "")
-                    stats["blood_group"] = user_data.get("blood_group", "Unknown")
             except:
                 stats["picture"] = ""
-                stats["blood_group"] = "Unknown"
         
         # Sort by donation count and get top 3
         top_donors = sorted(
@@ -1908,7 +1906,6 @@ def get_top_donors():
                 "blood_donations": donor["blood_donations"],
                 "plasma_donations": donor["plasma_donations"],
                 "lives_saved": donor["lives_saved"],
-                "blood_group": donor.get("blood_group", "Unknown"),
                 "description": f"Saved {donor['lives_saved']} lives through {donor['donation_count']} donations"
             })
         
