@@ -617,10 +617,19 @@ def _send_donor_request_email(request_id, donor, patient_name, blood_group, deta
 
 @app.route("/")
 def home():
+    """Updated home route to pass top donors to template"""
+    try:
+        # Fetch top donors
+        top_donors_response = get_top_donors()
+        top_donors_data = top_donors_response.get_json()
+        top_donors = top_donors_data.get("top_donors", [])
+    except:
+        top_donors = []
+    
     if 'role' in session and session['role'] == 'admin':
         return redirect(url_for('admin_home'))
-    return render_template("index.html")
-
+    
+    return render_template("index.html", top_donors=top_donors)
 
 @app.route("/eligibility")
 def eligibility():
@@ -1817,7 +1826,107 @@ def store_location():
             "status": "error",
             "message": str(e)
         }), 500
-    
+
+@app.route("/get_top_donors")
+def get_top_donors():
+    """
+    Get top 3 donors based on accepted donations
+    Returns donor stats for homepage display
+    """
+    try:
+        # Get all accepted requests across both blood and plasma
+        all_donations = []
+        
+        for collection_name in ["blood_requests", "plasma_requests"]:
+            requests = db.collection(collection_name).where("status", "==", "accepted").stream()
+            
+            for req_doc in requests:
+                req_data = req_doc.to_dict()
+                accepted_donor = req_data.get("accepted_donor")
+                
+                if accepted_donor:
+                    all_donations.append({
+                        "donor_id": accepted_donor.get("id"),
+                        "donor_name": accepted_donor.get("name"),
+                        "donor_email": accepted_donor.get("email"),
+                        "blood_group": req_data.get("blood_group"),
+                        "patient_name": req_data.get("patient_name"),
+                        "donation_type": "Blood" if collection_name == "blood_requests" else "Plasma"
+                    })
+        
+        # Count donations per donor
+        donor_stats = {}
+        for donation in all_donations:
+            donor_id = donation["donor_id"]
+            if donor_id not in donor_stats:
+                donor_stats[donor_id] = {
+                    "name": donation["donor_name"],
+                    "email": donation["donor_email"],
+                    "donation_count": 0,
+                    "blood_donations": 0,
+                    "plasma_donations": 0,
+                    "lives_saved": 0,
+                    "patients_helped": []
+                }
+            
+            donor_stats[donor_id]["donation_count"] += 1
+            donor_stats[donor_id]["lives_saved"] += 3  # Each donation saves ~3 lives
+            donor_stats[donor_id]["patients_helped"].append(donation["patient_name"])
+            
+            if donation["donation_type"] == "Blood":
+                donor_stats[donor_id]["blood_donations"] += 1
+            else:
+                donor_stats[donor_id]["plasma_donations"] += 1
+        
+        # Get donor profile pictures from users collection
+        for donor_id, stats in donor_stats.items():
+            try:
+                user_doc = db.collection("users").document(donor_id).get()
+                if user_doc.exists:
+                    user_data = user_doc.to_dict()
+                    stats["picture"] = user_data.get("picture", "")
+                    stats["blood_group"] = user_data.get("blood_group", "Unknown")
+            except:
+                stats["picture"] = ""
+                stats["blood_group"] = "Unknown"
+        
+        # Sort by donation count and get top 3
+        top_donors = sorted(
+            donor_stats.values(), 
+            key=lambda x: x["donation_count"], 
+            reverse=True
+        )[:3]
+        
+        # Format for display
+        formatted_donors = []
+        for idx, donor in enumerate(top_donors):
+            formatted_donors.append({
+                "rank": idx + 1,
+                "name": donor["name"],
+                "picture": donor.get("picture", ""),
+                "donation_count": donor["donation_count"],
+                "blood_donations": donor["blood_donations"],
+                "plasma_donations": donor["plasma_donations"],
+                "lives_saved": donor["lives_saved"],
+                "blood_group": donor.get("blood_group", "Unknown"),
+                "description": f"Saved {donor['lives_saved']} lives through {donor['donation_count']} donations"
+            })
+        
+        return jsonify({
+            "status": "success",
+            "top_donors": formatted_donors,
+            "total_donations": len(all_donations)
+        })
+        
+    except Exception as e:
+        print(f"❌ Error fetching top donors: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "status": "error",
+            "message": str(e),
+            "top_donors": []
+        }), 500
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
