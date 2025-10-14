@@ -319,6 +319,8 @@
 
       // Blood/Plasma toggle
       let currentType = 'Blood';
+      const originalTitle = document.title; // Store original title
+      
       function walkDOMAndReplace(node, fromText, toText) {
         if (node.nodeType === 3 && !node.parentElement.closest('.no-replace')) {
           if (node.textContent.includes(fromText)) {
@@ -332,6 +334,7 @@
       function switchType(toType) {
         if (currentType === toType) return;
         walkDOMAndReplace(document.body, currentType, toType);
+        document.title = originalTitle; // Always restore original title
         document.getElementById("emojiLogo").textContent = toType === "Plasma" ? "⚡" : "🩸";
         toggleBlood.classList.toggle("bg-red-500", toType === "Blood");
         togglePlasma.classList.toggle("bg-purple-200", toType === "Plasma");
