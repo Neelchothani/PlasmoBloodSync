@@ -321,10 +321,12 @@
       let currentType = 'Blood';
       function walkDOMAndReplace(node, fromText, toText) {
         if (node.nodeType === 3 && !node.parentElement.closest('.no-replace')) {
-          if (node.textContent.includes(fromText)) {
+          // Exclude title tag from replacement
+          if (node.parentElement.tagName !== 'TITLE' && node.textContent.includes(fromText)) {
             node.textContent = node.textContent.replaceAll(fromText, toText);
           }
-        } else {
+        } else if (node.nodeType === 1 && node.tagName !== 'TITLE') {
+          // Skip TITLE elements entirely
           node.childNodes.forEach(child => walkDOMAndReplace(child, fromText, toText));
         }
       }
@@ -332,7 +334,7 @@
       function switchType(toType) {
         if (currentType === toType) return;
         walkDOMAndReplace(document.body, currentType, toType);
-        document.title = document.title.replace(currentType, toType);
+        // Don't change document.title
         document.getElementById("emojiLogo").textContent = toType === "Plasma" ? "⚡" : "🩸";
         toggleBlood.classList.toggle("bg-red-500", toType === "Blood");
         togglePlasma.classList.toggle("bg-purple-200", toType === "Plasma");
