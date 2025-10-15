@@ -18,13 +18,13 @@
       theme: {
         extend: {
           colors: {
-            primary: '#f43f5e',
-            secondary: '#8b5cf6',
-            dark: '#0a0e1a',
-            lightDark: '#1a1f35',
+            primary: '#e11d48',
+            secondary: '#7c3aed',
+            dark: '#0f172a',
+            lightDark: '#1e293b',
             accent: '#06b6d4',
             muted: '#64748b',
-            card: '#1a1f35',
+            card: '#1e293b',
             success: '#10b981',
             warning: '#f59e0b'
           },
@@ -36,6 +36,7 @@
             'slide-up': 'slideUp 0.6s ease-out',
             'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
             'glow': 'glow 2s ease-in-out infinite alternate',
+            'gradient': 'gradient 3s ease infinite',
           },
           keyframes: {
             fadeIn: {
@@ -47,8 +48,12 @@
               '100%': { transform: 'translateY(0)', opacity: '1' },
             },
             glow: {
-              '0%': { boxShadow: '0 0 5px rgba(244, 63, 94, 0.5)' },
-              '100%': { boxShadow: '0 0 20px rgba(244, 63, 94, 0.8), 0 0 30px rgba(244, 63, 94, 0.4)' },
+              '0%': { boxShadow: '0 0 5px rgba(225, 29, 72, 0.5)' },
+              '100%': { boxShadow: '0 0 20px rgba(225, 29, 72, 0.8), 0 0 30px rgba(225, 29, 72, 0.4)' },
+            },
+            gradient: {
+              '0%, 100%': { backgroundPosition: '0% 50%' },
+              '50%': { backgroundPosition: '100% 50%' },
             }
           }
         }
@@ -62,23 +67,18 @@
     }
     
     .gradient-text {
-      background: linear-gradient(135deg, #f43f5e 0%, #ec4899 50%, #8b5cf6 100%);
+      background: linear-gradient(135deg, #e11d48 0%, #db2777 50%, #7c3aed 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
-      animation: gradient-shift 3s ease infinite;
+      animation: gradient 3s ease infinite;
       background-size: 200% 200%;
     }
     
-    @keyframes gradient-shift {
-      0%, 100% { background-position: 0% 50%; }
-      50% { background-position: 100% 50%; }
-    }
-    
     .glass-effect {
-      background: rgba(255, 255, 255, 0.05);
+      background: rgba(255, 255, 255, 0.08);
       backdrop-filter: blur(20px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.15);
     }
     
     .hover-lift {
@@ -86,8 +86,8 @@
     }
     
     .hover-lift:hover {
-      transform: translateY(-8px) scale(1.02);
-      box-shadow: 0 25px 50px rgba(244, 63, 94, 0.3);
+      transform: translateY(-5px);
+      box-shadow: 0 20px 40px rgba(225, 29, 72, 0.25);
     }
     
     .sidebar-link {
@@ -102,10 +102,11 @@
       left: 0;
       top: 0;
       height: 100%;
-      width: 4px;
-      background: linear-gradient(180deg, #f43f5e, #ec4899, #8b5cf6);
-      transform: translateX(-100%);
+      width: 3px;
+      background: linear-gradient(180deg, #e11d48, #db2777, #7c3aed);
+      transform: scaleY(0);
       transition: transform 0.3s ease;
+      transform-origin: top;
     }
     
     .sidebar-link::after {
@@ -115,14 +116,14 @@
       top: 0;
       width: 100%;
       height: 100%;
-      background: linear-gradient(90deg, rgba(244, 63, 94, 0.1), transparent);
+      background: linear-gradient(90deg, rgba(225, 29, 72, 0.08), transparent);
       opacity: 0;
       transition: opacity 0.3s ease;
     }
     
     .sidebar-link:hover::before,
     .sidebar-link.active::before {
-      transform: translateX(0);
+      transform: scaleY(1);
     }
     
     .sidebar-link:hover::after,
@@ -131,19 +132,24 @@
     }
     
     .sidebar-link:hover {
-      padding-left: 1.75rem;
-      background: rgba(244, 63, 94, 0.08);
+      padding-left: 1.5rem;
+      background: rgba(225, 29, 72, 0.05);
     }
     
     .sidebar-link.active {
-      background: linear-gradient(90deg, rgba(244, 63, 94, 0.15), rgba(139, 92, 246, 0.1));
+      background: linear-gradient(90deg, rgba(225, 29, 72, 0.12), rgba(124, 58, 237, 0.08));
       font-weight: 600;
-      padding-left: 1.75rem;
+      padding-left: 1.5rem;
+      color: #e11d48;
+    }
+
+    .dark .sidebar-link.active {
+      color: #fb7185;
     }
 
     @keyframes float {
       0%, 100% { transform: translateY(0px); }
-      50% { transform: translateY(-12px); }
+      50% { transform: translateY(-10px); }
     }
     
     .float-animation {
@@ -152,37 +158,56 @@
     
     /* Scrollbar styling */
     ::-webkit-scrollbar {
-      width: 10px;
+      width: 8px;
     }
     
     ::-webkit-scrollbar-track {
-      background: rgba(15, 23, 42, 0.3);
+      background: rgba(15, 23, 42, 0.2);
     }
     
     ::-webkit-scrollbar-thumb {
-      background: linear-gradient(180deg, #f43f5e, #8b5cf6);
-      border-radius: 5px;
+      background: linear-gradient(180deg, #e11d48, #7c3aed);
+      border-radius: 10px;
     }
     
     ::-webkit-scrollbar-thumb:hover {
-      background: linear-gradient(180deg, #ec4899, #a78bfa);
+      background: linear-gradient(180deg, #db2777, #8b5cf6);
     }
     
     /* Card glow effect */
     .card-glow {
-      box-shadow: 0 0 0 1px rgba(244, 63, 94, 0.1),
-                  0 8px 24px rgba(244, 63, 94, 0.2);
+      box-shadow: 0 4px 16px rgba(225, 29, 72, 0.15);
       transition: all 0.3s ease;
     }
     
     .card-glow:hover {
-      box-shadow: 0 0 0 1px rgba(244, 63, 94, 0.3),
-                  0 12px 36px rgba(244, 63, 94, 0.35),
-                  0 0 40px rgba(139, 92, 246, 0.2);
+      box-shadow: 0 8px 32px rgba(225, 29, 72, 0.25),
+                  0 0 40px rgba(124, 58, 237, 0.15);
+    }
+
+    /* Enhanced gradient backgrounds */
+    .bg-mesh-gradient {
+      background: 
+        radial-gradient(at 0% 0%, rgba(225, 29, 72, 0.15) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(124, 58, 237, 0.1) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(225, 29, 72, 0.12) 0px, transparent 50%),
+        radial-gradient(at 0% 100%, rgba(6, 182, 212, 0.1) 0px, transparent 50%);
+    }
+
+    /* Improved button styles */
+    .btn-primary {
+      background: linear-gradient(135deg, #e11d48 0%, #db2777 100%);
+      transition: all 0.3s ease;
+    }
+
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #db2777 0%, #e11d48 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px rgba(225, 29, 72, 0.4);
     }
   </style>
 </head>
-<body class="bg-gradient-to-br from-slate-50 via-white to-rose-50 dark:from-dark dark:via-[#0f1419] dark:to-[#1a0b2e] text-gray-900 dark:text-white min-h-screen font-sans transition-all duration-300">
+<body class="bg-gradient-to-br from-slate-50 via-gray-50 to-rose-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 text-gray-900 dark:text-gray-100 min-h-screen font-sans transition-all duration-300">
   
   <!-- Location Permission Modal -->
   <div id="locationModal" style="
@@ -192,50 +217,50 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0, 0, 0, 0.75);
-      backdrop-filter: blur(5px);
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(8px);
       z-index: 9999;
       justify-content: center;
       align-items: center;
   ">
       <div style="
           background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-          border-radius: 20px;
-          padding: 40px;
-          max-width: 520px;
+          border-radius: 24px;
+          padding: 48px;
+          max-width: 540px;
           width: 90%;
-          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+          box-shadow: 0 25px 70px rgba(0, 0, 0, 0.6);
           text-align: center;
           border: 1px solid rgba(255, 255, 255, 0.1);
       ">
-          <div style="font-size: 64px; margin-bottom: 20px;" class="float-animation">📍</div>
+          <div style="font-size: 72px; margin-bottom: 24px;" class="float-animation">📍</div>
           
           <h2 style="
               color: #fff;
-              margin-bottom: 15px;
-              font-size: 28px;
+              margin-bottom: 16px;
+              font-size: 32px;
               font-weight: 800;
-          ">Enable Location Services</h2>
+          ">Enable Location Access</h2>
           
           <p style="
               color: #cbd5e1;
-              margin-bottom: 25px;
-              font-size: 15px;
+              margin-bottom: 28px;
+              font-size: 16px;
               line-height: 1.7;
           ">
-              We need your location to match you with nearby donation requests and make our service more effective.
+              Help us connect you with nearby donation requests and make our service more effective.
               <br><br>
-              <strong style="color: #f87171;">Your privacy is important:</strong> Your location is only shared with the app and never sold or shared with third parties.
+              <strong style="color: #fb7185;">Your privacy matters:</strong> Location data is securely stored and never shared with third parties.
           </p>
           
           <div id="locationStatus" style="
               background: rgba(255, 255, 255, 0.1);
-              padding: 14px;
-              border-radius: 10px;
-              margin-bottom: 25px;
+              padding: 16px;
+              border-radius: 12px;
+              margin-bottom: 28px;
               font-size: 14px;
               color: #cbd5e1;
-              min-height: 45px;
+              min-height: 48px;
               display: flex;
               align-items: center;
               justify-content: center;
@@ -246,18 +271,18 @@
           
           <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
               <button id="enableLocationBtn" style="
-                  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+                  background: linear-gradient(135deg, #e11d48 0%, #db2777 100%);
                   color: white;
                   border: none;
-                  padding: 14px 32px;
-                  border-radius: 12px;
+                  padding: 16px 36px;
+                  border-radius: 14px;
                   font-size: 16px;
-                  font-weight: bold;
+                  font-weight: 700;
                   cursor: pointer;
                   transition: all 0.3s;
-                  min-width: 180px;
-                  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
-              " onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 6px 20px rgba(239, 68, 68, 0.6)'" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 4px 15px rgba(239, 68, 68, 0.4)'">
+                  min-width: 190px;
+                  box-shadow: 0 6px 20px rgba(225, 29, 72, 0.4);
+              " onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 8px 28px rgba(225, 29, 72, 0.6)'" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 6px 20px rgba(225, 29, 72, 0.4)'">
                   ✅ Enable Location
               </button>
               
@@ -265,22 +290,22 @@
                   background: rgba(255, 255, 255, 0.1);
                   color: #cbd5e1;
                   border: 1px solid rgba(255, 255, 255, 0.2);
-                  padding: 14px 32px;
-                  border-radius: 12px;
+                  padding: 16px 36px;
+                  border-radius: 14px;
                   font-size: 16px;
-                  font-weight: bold;
+                  font-weight: 700;
                   cursor: pointer;
                   transition: all 0.3s;
-                  min-width: 180px;
+                  min-width: 190px;
               " onmouseover="this.style.background='rgba(255, 255, 255, 0.15)'; this.style.transform='scale(1.05)'" onmouseout="this.style.background='rgba(255, 255, 255, 0.1)'; this.style.transform='scale(1)'">
                   ⏭️ Skip for Now
               </button>
           </div>
           
           <p style="
-              font-size: 12px;
+              font-size: 13px;
               color: #64748b;
-              margin-top: 20px;
+              margin-top: 24px;
           ">
               🔒 You can enable location anytime in settings
           </p>
@@ -289,64 +314,64 @@
 
   <div class="flex">
     <!-- Enhanced Sidebar -->
-    <aside id="sidebar" class="w-64 min-h-screen bg-white dark:bg-lightDark text-gray-900 dark:text-white shadow-2xl border-r border-gray-200 dark:border-gray-800 hidden md:block relative overflow-hidden">
+    <aside id="sidebar" class="w-72 min-h-screen bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100 shadow-2xl border-r border-gray-200 dark:border-slate-800 hidden md:block relative overflow-hidden">
       <!-- Animated gradient background -->
-      <div class="absolute inset-0 bg-gradient-to-br from-rose-500/5 via-transparent to-purple-500/5 pointer-events-none"></div>
+      <div class="absolute inset-0 bg-mesh-gradient pointer-events-none"></div>
       
-      <div class="relative px-6 py-6 border-b border-gray-200 dark:border-gray-800">
+      <div class="relative px-6 py-6 border-b border-gray-200 dark:border-slate-800">
         <div class="flex items-center gap-3">
           <div class="text-5xl float-animation" id="emojiLogo">🩸</div>
           <div>
-            <h1 class="text-xl font-bold gradient-text no-replace">PlasmoBlood</h1>
-            <p class="text-xs text-gray-500 dark:text-gray-400">Sync & Save Lives</p>
+            <h1 class="text-2xl font-extrabold gradient-text no-replace">PlasmoBlood</h1>
+            <p class="text-xs text-gray-600 dark:text-gray-400 font-medium">Sync & Save Lives</p>
           </div>
         </div>
       </div>
       
-      <nav class="mt-4 px-3 space-y-1">
+      <nav class="mt-6 px-4 space-y-2">
         {% if session.get('role') == 'admin' %}
-        <a href="{{ url_for('admin_home') }}" class="sidebar-link {% if request.path == '/admin' %}active{% endif %} flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium">
+        <a href="{{ url_for('admin_home') }}" class="sidebar-link {% if request.path == '/admin' %}active{% endif %} flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium">
           <i data-lucide="layout-dashboard" class="w-5 h-5"></i> Dashboard
         </a>
         {% else %}
-        <a href="{{ url_for('home') }}" class="sidebar-link {% if request.path == '/' %}active{% endif %} flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium">
+        <a href="{{ url_for('home') }}" class="sidebar-link {% if request.path == '/' %}active{% endif %} flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium">
           <i data-lucide="home" class="w-5 h-5"></i> Home
         </a>
         {% endif %}
 
         {% if session.get('role') != 'admin' %}
-        <a href="/register" class="sidebar-link {% if request.path == '/register' %}active{% endif %} flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium">
+        <a href="/register" class="sidebar-link {% if request.path == '/register' %}active{% endif %} flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium">
           <i data-lucide="heart-handshake" class="w-5 h-5"></i> Become a Donor
         </a>
         {% endif %}
 
         {% if session.get('role') != 'user' %}
-        <a href="/request-blood" class="sidebar-link {% if request.path == '/request-blood' %}active{% endif %} flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium">
+        <a href="/request-blood" class="sidebar-link {% if request.path == '/request-blood' %}active{% endif %} flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium">
           <i data-lucide="droplet" class="w-5 h-5"></i> Request Blood
         </a>
         {% endif %}
 
-        <a href="/eligibility" class="sidebar-link {% if request.path == '/eligibility' %}active{% endif %} flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium">
+        <a href="/eligibility" class="sidebar-link {% if request.path == '/eligibility' %}active{% endif %} flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium">
           <i data-lucide="check-circle" class="w-5 h-5"></i> Check Eligibility
         </a>
 
-        <a href="/admin" class="sidebar-link {% if request.path == '/admin' or request.path == '/dashboard' %}active{% endif %} flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium">
+        <a href="/admin" class="sidebar-link {% if request.path == '/admin' or request.path == '/dashboard' %}active{% endif %} flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium">
           <i data-lucide="activity" class="w-5 h-5"></i> Activity
         </a>
       </nav>
 
       <!-- Sidebar Stats Card -->
-      <div class="relative mx-3 mt-8 p-5 bg-gradient-to-br from-rose-500 via-pink-600 to-purple-600 rounded-2xl text-white shadow-xl card-glow overflow-hidden">
-        <div class="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
-        <div class="absolute -bottom-10 -left-10 w-32 h-32 bg-purple-300/10 rounded-full blur-2xl"></div>
+      <div class="relative mx-4 mt-8 p-6 bg-gradient-to-br from-rose-600 via-pink-600 to-purple-600 rounded-2xl text-white shadow-2xl overflow-hidden">
+        <div class="absolute -top-12 -right-12 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
+        <div class="absolute -bottom-12 -left-12 w-40 h-40 bg-purple-300/10 rounded-full blur-3xl"></div>
         <div class="relative z-10">
           <div class="flex items-center gap-2 mb-3">
             <i data-lucide="heart-pulse" class="w-5 h-5"></i>
             <h3 class="font-bold text-sm">Impact Today</h3>
           </div>
-          <p class="text-3xl font-extrabold mb-1">127</p>
+          <p class="text-4xl font-black mb-1">127</p>
           <p class="text-xs opacity-90">Lives saved this month</p>
-          <div class="mt-3 h-1.5 bg-white/20 rounded-full overflow-hidden">
+          <div class="mt-4 h-2 bg-white/20 rounded-full overflow-hidden">
             <div class="h-full bg-white rounded-full animate-pulse" style="width: 65%"></div>
           </div>
         </div>
@@ -356,13 +381,13 @@
     <!-- Page Content -->
     <div class="flex-1">
       <!-- Enhanced Navbar -->
-      <nav class="sticky top-0 z-50 flex items-center justify-between px-6 py-4 bg-white/90 dark:bg-lightDark/90 backdrop-blur-xl shadow-lg border-b border-gray-200 dark:border-gray-800">
+      <nav class="sticky top-0 z-50 flex items-center justify-between px-6 py-4 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-lg border-b border-gray-200 dark:border-slate-800">
         <div class="flex items-center space-x-4">
-          <button id="mobileMenuBtn" class="md:hidden text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 p-2 rounded-lg transition-all">
+          <button id="mobileMenuBtn" class="md:hidden text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 p-2 rounded-xl transition-all">
             <i data-lucide="menu" class="w-6 h-6"></i>
           </button>
           
-          <button id="themeToggle" class="p-2.5 rounded-xl hover:bg-gradient-to-br from-amber-100 to-orange-100 dark:hover:bg-gradient-to-br dark:from-gray-800 dark:to-gray-700 transition-all hover:scale-110 shadow-sm">
+          <button id="themeToggle" class="p-2.5 rounded-xl hover:bg-gradient-to-br from-amber-100 to-orange-100 dark:hover:bg-gradient-to-br dark:from-slate-800 dark:to-slate-700 transition-all hover:scale-110 shadow-sm">
             <i data-lucide="moon" class="w-5 h-5 text-amber-600 dark:text-amber-400"></i>
           </button>
           
@@ -373,20 +398,20 @@
 
         <div class="flex items-center gap-4">
           <!-- Notification Bell -->
-          <button class="relative p-2.5 rounded-xl hover:bg-gradient-to-br from-blue-50 to-cyan-50 dark:hover:bg-gray-800 transition-all hover:scale-110 shadow-sm">
+          <button class="relative p-2.5 rounded-xl hover:bg-gradient-to-br from-blue-50 to-cyan-50 dark:hover:bg-slate-800 transition-all hover:scale-110 shadow-sm">
             <i data-lucide="bell" class="w-5 h-5 text-gray-700 dark:text-gray-300"></i>
-            <span class="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-gradient-to-br from-rose-500 to-pink-600 rounded-full animate-pulse shadow-lg"></span>
+            <span class="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-gradient-to-br from-rose-600 to-pink-600 rounded-full animate-pulse shadow-lg"></span>
           </button>
 
           {% if session.get('email') %}
             {% set name = session.get('username', 'User') %}
             {% set initials = name[0:1].upper() + (name.split(' ')[1][0:1].upper() if ' ' in name else '') %}
-            {% set colors = ['bg-gradient-to-br from-red-500 to-pink-600', 'bg-gradient-to-br from-blue-500 to-cyan-600', 'bg-gradient-to-br from-green-500 to-emerald-600', 'bg-gradient-to-br from-purple-500 to-indigo-600', 'bg-gradient-to-br from-orange-500 to-yellow-600'] %}
-            {% set color = colors[loop.index0 % colors|length] if loop else 'bg-gradient-to-br from-gray-500 to-gray-600' %}
+            {% set colors = ['bg-gradient-to-br from-rose-600 to-pink-600', 'bg-gradient-to-br from-blue-600 to-cyan-600', 'bg-gradient-to-br from-green-600 to-emerald-600', 'bg-gradient-to-br from-purple-600 to-indigo-600', 'bg-gradient-to-br from-orange-600 to-yellow-600'] %}
+            {% set color = colors[loop.index0 % colors|length] if loop else 'bg-gradient-to-br from-gray-600 to-gray-700' %}
 
             <div class="relative">
-              <button id="accountBtn" class="flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-gradient-to-br from-gray-50 to-white dark:from-gray-800 dark:to-gray-700 hover:from-rose-50 hover:to-pink-50 dark:hover:from-gray-700 dark:hover:to-gray-600 transition-all shadow-md hover:shadow-xl border border-gray-200 dark:border-gray-700">
-                <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold {{ color }} shadow-lg ring-2 ring-white dark:ring-gray-800">
+              <button id="accountBtn" class="flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-gray-50 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-slate-700 transition-all shadow-md hover:shadow-xl border border-gray-200 dark:border-slate-700">
+                <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold {{ color }} shadow-lg ring-2 ring-white dark:ring-slate-900">
                   {{ initials }}
                 </div>
                 <span class="hidden sm:block font-semibold text-sm">{{ session['username'][:12] }}</span>
@@ -395,32 +420,32 @@
                 </svg>
               </button>
 
-              <div id="accountDropdown" class="hidden absolute right-0 mt-3 w-72 bg-white dark:bg-lightDark border border-gray-200 dark:border-gray-800 rounded-2xl shadow-2xl overflow-hidden backdrop-blur-xl">
-                <div class="px-5 py-5 border-b border-gray-200 dark:border-gray-800 bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50 dark:from-rose-900/20 dark:via-pink-900/20 dark:to-purple-900/20">
+              <div id="accountDropdown" class="hidden absolute right-0 mt-3 w-72 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl shadow-2xl overflow-hidden backdrop-blur-xl">
+                <div class="px-5 py-5 border-b border-gray-200 dark:border-slate-800 bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50 dark:from-rose-950/20 dark:via-pink-950/20 dark:to-purple-950/20">
                   <p class="font-bold text-gray-900 dark:text-white text-lg">{{ session['username'] }}</p>
                   <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">{{ session['email'] }}</p>
-                  <span class="inline-block mt-3 px-3 py-1.5 text-xs font-bold rounded-full bg-gradient-to-r from-rose-500 to-pink-600 text-white shadow-lg">
+                  <span class="inline-block mt-3 px-3 py-1.5 text-xs font-bold rounded-full bg-gradient-to-r from-rose-600 to-pink-600 text-white shadow-lg">
                     {{ session.get('role', 'user').capitalize() }}
                   </span>
                 </div>
                 
-                <a href="/edit-profile" class="flex items-center gap-3 px-5 py-3.5 hover:bg-gradient-to-r hover:from-gray-50 hover:to-transparent dark:hover:from-gray-800 dark:hover:to-transparent transition-all group">
-                  <i data-lucide="user" class="w-4 h-4 text-gray-500 group-hover:text-rose-500 transition-colors"></i>
+                <a href="/edit-profile" class="flex items-center gap-3 px-5 py-3.5 hover:bg-gray-50 dark:hover:bg-slate-800 transition-all group">
+                  <i data-lucide="user" class="w-4 h-4 text-gray-500 group-hover:text-rose-600 transition-colors"></i>
                   <span class="text-sm font-medium">Edit Profile</span>
                 </a>
                 
-                <a href="/settings" class="flex items-center gap-3 px-5 py-3.5 hover:bg-gradient-to-r hover:from-gray-50 hover:to-transparent dark:hover:from-gray-800 dark:hover:to-transparent transition-all group">
-                  <i data-lucide="settings" class="w-4 h-4 text-gray-500 group-hover:text-purple-500 transition-colors"></i>
+                <a href="/settings" class="flex items-center gap-3 px-5 py-3.5 hover:bg-gray-50 dark:hover:bg-slate-800 transition-all group">
+                  <i data-lucide="settings" class="w-4 h-4 text-gray-500 group-hover:text-purple-600 transition-colors"></i>
                   <span class="text-sm font-medium">Settings</span>
                 </a>
                 
-                <a href="/signin" class="flex items-center gap-3 px-5 py-3.5 hover:bg-gradient-to-r hover:from-gray-50 hover:to-transparent dark:hover:from-gray-800 dark:hover:to-transparent transition-all group">
-                  <i data-lucide="refresh-cw" class="w-4 h-4 text-gray-500 group-hover:text-cyan-500 transition-colors"></i>
+                <a href="/signin" class="flex items-center gap-3 px-5 py-3.5 hover:bg-gray-50 dark:hover:bg-slate-800 transition-all group">
+                  <i data-lucide="refresh-cw" class="w-4 h-4 text-gray-500 group-hover:text-cyan-600 transition-colors"></i>
                   <span class="text-sm font-medium">Switch Account</span>
                 </a>
                 
-                <div class="border-t border-gray-200 dark:border-gray-800">
-                  <a href="/signout" class="flex items-center gap-3 px-5 py-3.5 text-rose-600 hover:bg-gradient-to-r hover:from-rose-50 hover:to-transparent dark:hover:from-rose-900/20 dark:hover:to-transparent transition-all group">
+                <div class="border-t border-gray-200 dark:border-slate-800">
+                  <a href="/signout" class="flex items-center gap-3 px-5 py-3.5 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-all group">
                     <i data-lucide="log-out" class="w-4 h-4 group-hover:scale-110 transition-transform"></i>
                     <span class="text-sm font-semibold">Sign Out</span>
                   </a>
@@ -428,19 +453,19 @@
               </div>
             </div>
           {% else %}
-           <a href="/signin" class="px-6 py-2.5 bg-gradient-to-r from-rose-500 via-pink-600 to-purple-600 text-white rounded-2xl font-semibold hover:shadow-2xl transition-all hover:scale-105 shadow-lg hover:shadow-rose-500/50">Sign In</a>
+           <a href="/signin" class="px-6 py-2.5 bg-gradient-to-r from-rose-600 via-pink-600 to-purple-600 text-white rounded-2xl font-bold hover:shadow-2xl transition-all hover:scale-105 shadow-lg hover:shadow-rose-500/50">Sign In</a>
           {% endif %}
         </div>
       </nav>
 
       <!-- Enhanced Toggle Buttons -->
-      <div class="bg-white/80 dark:bg-card/80 backdrop-blur-xl px-6 py-4 flex items-center justify-center gap-4 border-b border-gray-200 dark:border-gray-800 shadow-sm no-replace">
-        <div class="flex items-center bg-gradient-to-r from-gray-100 to-gray-50 dark:from-gray-800 dark:to-gray-700 rounded-2xl p-1.5 shadow-inner border border-gray-200 dark:border-gray-700">
-          <button id="toggleBlood" class="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-rose-500 to-pink-600 text-white font-semibold shadow-lg transition-all hover:shadow-xl hover:scale-105">
+      <div class="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl px-6 py-4 flex items-center justify-center gap-4 border-b border-gray-200 dark:border-slate-800 shadow-sm no-replace">
+        <div class="flex items-center bg-gray-100 dark:bg-slate-800 rounded-2xl p-1.5 shadow-inner border border-gray-200 dark:border-slate-700">
+          <button id="toggleBlood" class="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-rose-600 to-pink-600 text-white font-bold shadow-lg transition-all hover:shadow-xl hover:scale-105">
             <i data-lucide="droplet" class="w-4 h-4"></i>
             Blood
           </button>
-          <button id="togglePlasma" class="flex items-center gap-2 px-6 py-3 rounded-xl text-gray-700 dark:text-gray-300 font-semibold transition-all hover:bg-white/50 dark:hover:bg-gray-700/50 hover:scale-105">
+          <button id="togglePlasma" class="flex items-center gap-2 px-6 py-3 rounded-xl text-gray-700 dark:text-gray-300 font-bold transition-all hover:bg-white/60 dark:hover:bg-slate-700/60 hover:scale-105">
             <i data-lucide="zap" class="w-4 h-4"></i>
             Plasma
           </button>
@@ -448,19 +473,19 @@
       </div>
 
       <!-- Main Content -->
-      <main class="p-6 md:p-8 space-y-8">
+      <main class="p-6 md:p-8 space-y-8 bg-mesh-gradient">
         <!-- Welcome Alert Box -->
         {% if session.get('email') and session.get('role') == 'user' and request.path == '/' %}
-        <div class="max-w-4xl mx-auto animate-slide-up">
+        <div class="max-w-5xl mx-auto animate-slide-up">
           <div class="relative overflow-hidden rounded-3xl shadow-2xl card-glow">
-            <div class="absolute inset-0 bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-700 opacity-95"></div>
-            <div class="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
-            <div class="absolute bottom-0 left-0 w-64 h-64 bg-purple-300/10 rounded-full blur-3xl"></div>
+            <div class="absolute inset-0 bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-700"></div>
+            <div class="absolute top-0 right-0 w-80 h-80 bg-white/10 rounded-full blur-3xl"></div>
+            <div class="absolute bottom-0 left-0 w-80 h-80 bg-purple-300/10 rounded-full blur-3xl"></div>
             <div class="relative flex items-center gap-5 px-8 py-8 text-white z-10">
               <div class="text-5xl float-animation">👋</div>
               <div>
-                <h2 class="text-3xl font-extrabold tracking-tight mb-1">Welcome back, {{ session['username'] | capitalize }}!</h2>
-                <p class="text-cyan-100 text-lg">Ready to make a difference today? Let's save more lives together!</p>
+                <h2 class="text-3xl font-black tracking-tight mb-1">Welcome back, {{ session['username'] | capitalize }}!</h2>
+                <p class="text-cyan-100 text-lg font-medium">Ready to make a difference today? Let's save more lives together!</p>
               </div>
             </div>
           </div>
@@ -469,20 +494,20 @@
 
         <!-- User Questionnaire -->
         {% if session.get('email') and session.get('role') == 'user' and request.path == '/' %}
-        <div class="max-w-3xl mx-auto">
+        <div class="max-w-4xl mx-auto">
           <div class="relative overflow-hidden rounded-3xl shadow-2xl hover-lift card-glow">
-            <div class="absolute inset-0 bg-gradient-to-br from-amber-400 via-orange-500 to-rose-600 opacity-95"></div>
+            <div class="absolute inset-0 bg-gradient-to-br from-amber-500 via-orange-600 to-rose-600"></div>
             <div class="absolute top-0 left-0 w-96 h-96 bg-yellow-300/20 rounded-full blur-3xl"></div>
             <div class="absolute bottom-0 right-0 w-96 h-96 bg-pink-300/20 rounded-full blur-3xl"></div>
             <div class="relative px-10 py-12 text-center text-white z-10">
               <div class="text-6xl mb-5 float-animation">📋</div>
-              <h2 class="text-4xl font-extrabold mb-4">Share Your Experience</h2>
-              <p class="text-amber-50 mb-8 max-w-lg mx-auto leading-relaxed text-lg">
+              <h2 class="text-4xl font-black mb-4">Share Your Experience</h2>
+              <p class="text-amber-50 mb-8 max-w-lg mx-auto leading-relaxed text-lg font-medium">
                 Your feedback helps us improve and serve the community better. Take 2 minutes to share your thoughts!
               </p>
               <a href="https://docs.google.com/forms/d/e/1FAIpQLSdZsD-2lHlB2nfMRbw-_rNnvZe4yUheWjh6lM4HkN4_jTj16A/viewform"
                  target="_blank"
-                 class="inline-flex items-center gap-3 px-10 py-5 bg-white text-orange-600 rounded-2xl font-bold shadow-2xl hover:shadow-3xl transition-all hover:scale-110 hover:bg-gradient-to-r hover:from-white hover:to-amber-50">
+                 class="inline-flex items-center gap-3 px-10 py-5 bg-white text-orange-600 rounded-2xl font-black shadow-2xl hover:shadow-3xl transition-all hover:scale-110 hover:bg-amber-50">
                 <i data-lucide="message-circle" class="w-5 h-5"></i>
                 Fill Out Questionnaire
               </a>
@@ -495,21 +520,21 @@
       </main>
 
       <!-- Footer -->
-      <footer class="mt-16 border-t border-gray-200 dark:border-gray-800 bg-gradient-to-br from-white to-gray-50 dark:from-lightDark dark:to-dark">
+      <footer class="mt-16 border-t border-gray-200 dark:border-slate-800 bg-gradient-to-br from-white to-gray-50 dark:from-slate-900 dark:to-slate-950">
         <div class="max-w-7xl mx-auto px-8 py-10">
           <div class="flex flex-col md:flex-row justify-between items-center gap-6">
             <div class="text-center md:text-left">
-              <h3 class="text-xl font-extrabold gradient-text no-replace mb-2">PlasmoBlood Sync</h3>
-              <p class="text-sm text-gray-600 dark:text-gray-400">Connecting donors, saving lives</p>
+              <h3 class="text-xl font-black gradient-text no-replace mb-2">PlasmoBlood Sync</h3>
+              <p class="text-sm text-gray-600 dark:text-gray-400 font-medium">Connecting donors, saving lives</p>
             </div>
             <div class="flex gap-8 text-sm text-gray-600 dark:text-gray-400">
-              <a href="#" class="hover:text-rose-500 transition-colors font-medium hover:scale-110 transform">Privacy Policy</a>
-              <a href="#" class="hover:text-rose-500 transition-colors font-medium hover:scale-110 transform">Terms of Service</a>
-              <a href="#" class="hover:text-rose-500 transition-colors font-medium hover:scale-110 transform">Contact Us</a>
+              <a href="#" class="hover:text-rose-600 transition-colors font-semibold hover:scale-110 transform">Privacy Policy</a>
+              <a href="#" class="hover:text-rose-600 transition-colors font-semibold hover:scale-110 transform">Terms of Service</a>
+              <a href="#" class="hover:text-rose-600 transition-colors font-semibold hover:scale-110 transform">Contact Us</a>
             </div>
           </div>
           <div class="mt-8 text-center text-xs text-gray-500 dark:text-gray-500">
-            © 2025 PlasmoBlood Sync. All rights reserved. Made with <span class="text-rose-500 animate-pulse">❤️</span> for humanity.
+            © 2025 PlasmoBlood Sync. All rights reserved. Made with <span class="text-rose-600 animate-pulse">❤️</span> for humanity.
           </div>
         </div>
       </footer>
@@ -587,11 +612,11 @@
         document.getElementById("emojiLogo").textContent = toType === "Plasma" ? "⚡" : "🩸";
         
         if (toType === "Blood") {
-          toggleBlood.className = "flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-rose-500 to-pink-600 text-white font-semibold shadow-lg transition-all hover:shadow-xl hover:scale-105";
-          togglePlasma.className = "flex items-center gap-2 px-6 py-3 rounded-xl text-gray-700 dark:text-gray-300 font-semibold transition-all hover:bg-white/50 dark:hover:bg-gray-700/50 hover:scale-105";
+          toggleBlood.className = "flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-rose-600 to-pink-600 text-white font-bold shadow-lg transition-all hover:shadow-xl hover:scale-105";
+          togglePlasma.className = "flex items-center gap-2 px-6 py-3 rounded-xl text-gray-700 dark:text-gray-300 font-bold transition-all hover:bg-white/60 dark:hover:bg-slate-700/60 hover:scale-105";
         } else {
-          togglePlasma.className = "flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-semibold shadow-lg transition-all hover:shadow-xl hover:scale-105";
-          toggleBlood.className = "flex items-center gap-2 px-6 py-3 rounded-xl text-gray-700 dark:text-gray-300 font-semibold transition-all hover:bg-white/50 dark:hover:bg-gray-700/50 hover:scale-105";
+          togglePlasma.className = "flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold shadow-lg transition-all hover:shadow-xl hover:scale-105";
+          toggleBlood.className = "flex items-center gap-2 px-6 py-3 rounded-xl text-gray-700 dark:text-gray-300 font-bold transition-all hover:bg-white/60 dark:hover:bg-slate-700/60 hover:scale-105";
         }
         
         currentType = toType;
