@@ -1,74 +1,182 @@
 {% extends "base.html" %}
-{% block title %}Eligibility | PlasmoBlood Sync{% endblock %}
+{% block title %}Eligibility Checker | PlasmoBlood Sync{% endblock %}
 
 {% block content %}
-<div class="min-h-[80vh] flex flex-col items-center justify-center px-4">
+<div class="min-h-[85vh] flex flex-col items-center justify-center px-4 py-12">
 
-  <!-- Professional eligibility info box -->
-  <div class="w-full max-w-xl mb-6 bg-blue-900/40 border border-blue-500 text-blue-200 p-4 rounded-xl shadow-sm flex items-start gap-3">
-    <svg class="w-6 h-6 mt-1 text-blue-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 20c4.418 0 8-3.582 8-8s-3.582-8-8-8-8 3.582-8 8 3.582 8 8 8z" />
-    </svg>
-    <p class="text-sm leading-relaxed">
-      <span class="font-semibold text-white">Note:</span> To be eligible for donation, you must be at least 
-      <span class="font-bold text-white">18 years old </span>, weigh at least 
-      <span class="font-bold text-white">50kg</span>
-      <span class="font-bold text-white">and Last donation should be at least 3 months ago.</span>
-    
+  <!-- Enhanced Hero Section -->
+  <div class="w-full max-w-2xl mb-8 text-center animate-slide-up">
+    <div class="inline-block mb-4">
+      <div class="w-20 h-20 bg-gradient-to-br from-rose-500 to-pink-600 rounded-3xl flex items-center justify-center shadow-2xl float-animation">
+        <i data-lucide="clipboard-check" class="w-10 h-10 text-white"></i>
+      </div>
+    </div>
+    <h1 class="text-4xl md:text-5xl font-black mb-4 gradient-text">Check Your Eligibility</h1>
+    <p class="text-gray-600 dark:text-gray-400 text-lg max-w-xl mx-auto leading-relaxed">
+      Complete the form below to verify if you meet the requirements for blood or plasma donation.
     </p>
   </div>
 
-  <!-- Form Card -->
-  <div class="w-full max-w-xl p-6 bg-[#1a1c2c] rounded-2xl shadow-xl border border-gray-700">
-    <h2 class="text-3xl font-bold mb-4 text-accent dark:text-yellow-400">Eligibility Checker</h2>
-
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        <div class="mb-6 space-y-2">
-          {% for category, message in messages %}
-            <div class="px-4 py-3 rounded-xl text-sm font-medium shadow-md
-              {% if category == 'success' %}bg-green-100 text-green-800 dark:bg-green-200
-              {% elif category == 'error' %}bg-red-100 text-red-800 dark:bg-red-300
-              {% else %}bg-gray-100 text-gray-800 dark:bg-gray-300{% endif %}">
-              {{ message }}
-            </div>
-          {% endfor %}
+  <!-- Enhanced Info Box -->
+  <div class="w-full max-w-2xl mb-8 animate-slide-up" style="animation-delay: 0.1s;">
+    <div class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 p-6 shadow-2xl">
+      <div class="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
+      <div class="absolute bottom-0 left-0 w-40 h-40 bg-indigo-300/10 rounded-full blur-3xl"></div>
+      
+      <div class="relative z-10 flex items-start gap-4">
+        <div class="flex-shrink-0 w-12 h-12 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
+          <i data-lucide="info" class="w-6 h-6 text-white"></i>
         </div>
-      {% endif %}
-    {% endwith %}
-
-    <form method="POST" action="/check-eligibility" enctype="multipart/form-data" class="space-y-6">
-      <div>
-        <label for="age" class="block text-sm font-semibold mb-2 text-gray-300">Age</label>
-        <input type="number" id="age" name="age" required
-               class="w-full px-4 py-3 rounded-xl bg-gray-900 text-white focus:ring-2 focus:ring-yellow-500 outline-none">
+        <div class="flex-1 text-white">
+          <h3 class="font-bold text-lg mb-2">Eligibility Requirements</h3>
+          <div class="space-y-2 text-blue-50">
+            <div class="flex items-center gap-2">
+              <i data-lucide="check-circle" class="w-4 h-4 flex-shrink-0"></i>
+              <span class="text-sm">Must be at least <strong class="text-white">18 years old</strong></span>
+            </div>
+            <div class="flex items-center gap-2">
+              <i data-lucide="check-circle" class="w-4 h-4 flex-shrink-0"></i>
+              <span class="text-sm">Minimum weight of <strong class="text-white">50 kg</strong></span>
+            </div>
+            <div class="flex items-center gap-2">
+              <i data-lucide="check-circle" class="w-4 h-4 flex-shrink-0"></i>
+              <span class="text-sm">Last donation at least <strong class="text-white">3 months ago</strong></span>
+            </div>
+          </div>
+        </div>
       </div>
+    </div>
+  </div>
 
-      <div>
-        <label for="weight" class="block text-sm font-semibold mb-2 text-gray-300">Weight (in kg)</label>
-        <input type="number" id="weight" name="weight" required
-               class="w-full px-4 py-3 rounded-xl bg-gray-900 text-white focus:ring-2 focus:ring-yellow-500 outline-none">
-      </div>
+  <!-- Enhanced Form Card -->
+  <div class="w-full max-w-2xl animate-slide-up" style="animation-delay: 0.2s;">
+    <div class="relative overflow-hidden rounded-3xl bg-white dark:bg-slate-900 shadow-2xl border border-gray-200 dark:border-slate-800">
+      <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-rose-500 via-pink-500 to-purple-500"></div>
+      
+      <div class="p-8 md:p-10">
+        <div class="flex items-center gap-3 mb-8">
+          <div class="w-10 h-10 bg-gradient-to-br from-rose-100 to-pink-100 dark:from-rose-900/30 dark:to-pink-900/30 rounded-xl flex items-center justify-center">
+            <i data-lucide="file-text" class="w-5 h-5 text-rose-600 dark:text-rose-400"></i>
+          </div>
+          <h2 class="text-2xl md:text-3xl font-black text-gray-900 dark:text-white">Application Form</h2>
+        </div>
 
-      <div>
-        <label for="last_donation" class="block text-sm font-semibold mb-2 text-gray-300">Date of Last Donation</label>
-        <input type="date" id="last_donation" name="last_donation" required
-               class="w-full px-4 py-3 rounded-xl bg-gray-900 text-white focus:ring-2 focus:ring-yellow-500 outline-none">
-      </div>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <div class="mb-8 space-y-3">
+              {% for category, message in messages %}
+                <div class="px-5 py-4 rounded-2xl text-sm font-semibold shadow-lg animate-slide-up flex items-center gap-3
+                  {% if category == 'success' %}bg-gradient-to-r from-green-50 to-emerald-50 text-green-800 border border-green-200 dark:from-green-900/20 dark:to-emerald-900/20 dark:text-green-400 dark:border-green-800
+                  {% elif category == 'error' %}bg-gradient-to-r from-red-50 to-rose-50 text-red-800 border border-red-200 dark:from-red-900/20 dark:to-rose-900/20 dark:text-red-400 dark:border-red-800
+                  {% else %}bg-gradient-to-r from-gray-50 to-slate-50 text-gray-800 border border-gray-200 dark:from-gray-800 dark:to-slate-800 dark:text-gray-300 dark:border-gray-700{% endif %}">
+                  {% if category == 'success' %}
+                    <i data-lucide="check-circle-2" class="w-5 h-5 flex-shrink-0"></i>
+                  {% elif category == 'error' %}
+                    <i data-lucide="alert-circle" class="w-5 h-5 flex-shrink-0"></i>
+                  {% else %}
+                    <i data-lucide="info" class="w-5 h-5 flex-shrink-0"></i>
+                  {% endif %}
+                  <span>{{ message }}</span>
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
 
-      <div>
-        <label for="document" class="block text-sm font-semibold mb-2 text-gray-300">Medical Report (PDF or Image)</label>
-        <input type="file" name="document" accept=".pdf,.png,.jpg,.jpeg" required
-               class="w-full text-white file:bg-yellow-500 file:text-white file:rounded-lg file:px-4 file:py-2 bg-gray-900 rounded-xl cursor-pointer">
-      </div>
+        <form method="POST" action="/check-eligibility" enctype="multipart/form-data" class="space-y-6">
+          <!-- Age Field -->
+          <div class="group">
+            <label for="age" class="flex items-center gap-2 text-sm font-bold mb-3 text-gray-700 dark:text-gray-300">
+              <i data-lucide="calendar" class="w-4 h-4 text-rose-600 dark:text-rose-400"></i>
+              Age
+            </label>
+            <div class="relative">
+              <input type="number" id="age" name="age" required min="1" max="120"
+                     placeholder="Enter your age"
+                     class="w-full px-5 py-4 rounded-xl bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white border-2 border-gray-200 dark:border-slate-700 focus:border-rose-500 dark:focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 outline-none transition-all placeholder:text-gray-400">
+              <div class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-600 text-sm font-medium">
+                years
+              </div>
+            </div>
+          </div>
 
-      <div class="pt-4">
-        <button type="submit"
-                class="w-full bg-green-600 hover:bg-green-500 text-white px-6 py-3 rounded-xl font-semibold transition-all shadow-md shadow-green-500/20">
-          ✅ Check Eligibility
-        </button>
+          <!-- Weight Field -->
+          <div class="group">
+            <label for="weight" class="flex items-center gap-2 text-sm font-bold mb-3 text-gray-700 dark:text-gray-300">
+              <i data-lucide="scale" class="w-4 h-4 text-rose-600 dark:text-rose-400"></i>
+              Weight (kg)
+            </label>
+            <div class="relative">
+              <input type="number" id="weight" name="weight" required min="1" max="300" step="0.1"
+                     placeholder="Enter your weight"
+                     class="w-full px-5 py-4 rounded-xl bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white border-2 border-gray-200 dark:border-slate-700 focus:border-rose-500 dark:focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 outline-none transition-all placeholder:text-gray-400">
+              <div class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-600 text-sm font-medium">
+                kg
+              </div>
+            </div>
+          </div>
+
+          <!-- Last Donation Date -->
+          <div class="group">
+            <label for="last_donation" class="flex items-center gap-2 text-sm font-bold mb-3 text-gray-700 dark:text-gray-300">
+              <i data-lucide="calendar-clock" class="w-4 h-4 text-rose-600 dark:text-rose-400"></i>
+              Date of Last Donation
+            </label>
+            <input type="date" id="last_donation" name="last_donation" required
+                   class="w-full px-5 py-4 rounded-xl bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white border-2 border-gray-200 dark:border-slate-700 focus:border-rose-500 dark:focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 outline-none transition-all">
+          </div>
+
+          <!-- Medical Report Upload -->
+          <div class="group">
+            <label for="document" class="flex items-center gap-2 text-sm font-bold mb-3 text-gray-700 dark:text-gray-300">
+              <i data-lucide="file-up" class="w-4 h-4 text-rose-600 dark:text-rose-400"></i>
+              Medical Report
+            </label>
+            <div class="relative">
+              <input type="file" name="document" id="document" accept=".pdf,.png,.jpg,.jpeg" required
+                     class="w-full px-5 py-4 rounded-xl bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white border-2 border-dashed border-gray-300 dark:border-slate-700 hover:border-rose-500 dark:hover:border-rose-500 focus:border-rose-500 dark:focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 outline-none transition-all cursor-pointer
+                     file:mr-4 file:py-2.5 file:px-5 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-gradient-to-r file:from-rose-600 file:to-pink-600 file:text-white file:cursor-pointer file:transition-all hover:file:from-rose-700 hover:file:to-pink-700 file:shadow-lg">
+              <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                <i data-lucide="info" class="w-3 h-3 inline mr-1"></i>
+                Accepted formats: PDF, PNG, JPG, JPEG (Max 10MB)
+              </p>
+            </div>
+          </div>
+
+          <!-- Submit Button -->
+          <div class="pt-4">
+            <button type="submit"
+                    class="w-full group relative overflow-hidden bg-gradient-to-r from-green-600 via-emerald-600 to-green-600 hover:from-green-700 hover:via-emerald-700 hover:to-green-700 text-white px-8 py-5 rounded-2xl font-black text-lg transition-all shadow-2xl shadow-green-500/30 hover:shadow-green-500/50 hover:scale-[1.02] flex items-center justify-center gap-3">
+              <div class="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
+              <i data-lucide="check-circle" class="w-6 h-6 relative z-10"></i>
+              <span class="relative z-10">Check Eligibility</span>
+            </button>
+          </div>
+        </form>
+
+        <!-- Help Text -->
+        <div class="mt-8 p-5 bg-gradient-to-br from-gray-50 to-slate-50 dark:from-slate-800 dark:to-slate-900 rounded-2xl border border-gray-200 dark:border-slate-700">
+          <div class="flex items-start gap-3">
+            <i data-lucide="help-circle" class="w-5 h-5 text-rose-600 dark:text-rose-400 flex-shrink-0 mt-0.5"></i>
+            <div>
+              <h4 class="font-bold text-sm text-gray-900 dark:text-white mb-1">Need Help?</h4>
+              <p class="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+                If you have questions about eligibility requirements or the donation process, please contact our support team or visit our FAQ section.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
-    </form>
+    </div>
   </div>
 </div>
+
+<script>
+  // Initialize Lucide icons after page load
+  document.addEventListener('DOMContentLoaded', function() {
+    if (typeof lucide !== 'undefined') {
+      lucide.createIcons();
+    }
+  });
+</script>
 {% endblock %}
