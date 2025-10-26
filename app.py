@@ -644,9 +644,6 @@ def _send_donor_request_email(request_id, donor, patient_name, blood_group, deta
     accept_link = f"{request.url_root}donor_response/{request_id}/{donor_id}/accept"
     reject_link = f"{request.url_root}donor_response/{request_id}/{donor_id}/reject"
     
-    # Shorten URLs for SMS (optional - but saves characters)
-    # You can use bit.ly API or just use full URLs
-    
     # === 1. SEND EMAIL ===
     if donor_email:
         html = f"""
@@ -722,27 +719,39 @@ def _send_donor_request_email(request_id, donor, patient_name, blood_group, deta
     
     # === 2. SEND SMS (Fast2SMS - FREE!) ===
     if donor_phone:
-        # Clean phone number (remove +91 if present)
-        clean_phone = str(donor_phone).lstrip('+').lstrip('91').lstrip('0')
+        # ✅ FIXED: Better phone cleaning and validation
+        phone_str = str(donor_phone).strip()
         
+        # Remove common prefixes
+        if phone_str.startswith('+91'):
+            phone_str = phone_str[3:]
+        elif phone_str.startswith('91') and len(phone_str) == 12:
+            phone_str = phone_str[2:]
+        elif phone_str.startswith('0'):
+            phone_str = phone_str[1:]
+        
+        # Remove any non-digit characters
+        clean_phone = ''.join(filter(str.isdigit, phone_str))
+        
+        # ✅ FIXED: More lenient validation (any 10-digit number)
         if len(clean_phone) == 10 and clean_phone.isdigit():
-            # Create concise SMS message (Fast2SMS supports 500 chars)
+            # Create concise SMS message
             sms_body = (
                 f"URGENT: Blood/Plasma needed!\n"
                 f"Patient: {patient_name}\n"
                 f"Type: {blood_group}\n"
                 f"Distance: {distance_km:.1f}km\n"
                 f"Contact: {phone or 'N/A'}\n\n"
-                f"Respond: {accept_link[:50]}..."  # Shortened for SMS
+                f"Respond: {accept_link}"
             )
             
             send_sms_fast2sms_threaded(
                 phone_numbers=clean_phone,
                 message=sms_body
             )
-            print(f"📱 SMS queued for {donor.get('name')} at {clean_phone}")
+            print(f"📱 SMS queued for {donor.get('name')} at {clean_phone} ({distance_km:.1f}km)")
         else:
-            print(f"⚠️ Invalid phone format for {donor.get('name')}: {donor_phone}")
+            print(f"⚠️ Invalid phone format for {donor.get('name')}: '{donor_phone}' → cleaned: '{clean_phone}' (len={len(clean_phone)})")
     else:
         print(f"⚠️ No phone number for donor {donor.get('name')}")
 
