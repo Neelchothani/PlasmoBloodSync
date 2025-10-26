@@ -705,7 +705,7 @@ def _send_donor_request_email(request_id, donor, patient_name, blood_group, deta
     accept_link = f"{request.url_root}donor_response/{request_id}/{donor_id}/accept"
     reject_link = f"{request.url_root}donor_response/{request_id}/{donor_id}/reject"
     
-    # === 1. SEND EMAIL ===
+    # === 1. SEND EMAIL (with beautiful buttons) ===
     if donor_email:
         html = f"""
         <html>
@@ -778,36 +778,42 @@ def _send_donor_request_email(request_id, donor, patient_name, blood_group, deta
     else:
         print(f"⚠️ No email for donor {donor.get('name')}")
     
-    # === 2. SEND SMS (Fast2SMS - FREE!) ===
+    # === 2. SEND SMS (SHORT, CLEAN, NO SPAM) ===
     if donor_phone:
-        # ✅ Better phone cleaning and validation
         phone_str = str(donor_phone).strip()
+        print(f"🔍 Original phone: '{phone_str}'")
         
-        # Remove common prefixes
+        # Remove +91 prefix if present
         if phone_str.startswith('+91'):
             phone_str = phone_str[3:]
+            print(f"🔍 After removing +91: '{phone_str}'")
         elif phone_str.startswith('91') and len(phone_str) == 12:
             phone_str = phone_str[2:]
-        elif phone_str.startswith('0'):
+            print(f"🔍 After removing 91: '{phone_str}'")
+        
+        # Remove leading zero
+        if phone_str.startswith('0'):
             phone_str = phone_str[1:]
+            print(f"🔍 After removing 0: '{phone_str}'")
         
-        # Remove any non-digit characters
+        # Keep only digits
         clean_phone = ''.join(filter(str.isdigit, phone_str))
+        print(f"🔍 Final cleaned: '{clean_phone}'")
         
-        # ✅ Validate: Must be exactly 10 digits
         if len(clean_phone) == 10 and clean_phone.isdigit():
-            # Create concise SMS message
+            # ✅ SHORT SMS with two simple links (under 160 chars)
+            # Create short response page URL
+            response_page = f"{request.url_root}r/{request_id}/{donor_id}"
+            
             sms_body = (
-                f"URGENT: Blood/Plasma needed!\n"
-                f"Patient: {patient_name}\n"
-                f"Type: {blood_group}\n"
-                f"Distance: {distance_km:.1f}km\n"
-                f"Contact: {phone or 'N/A'}\n\n"
-                f"Respond: {accept_link}"
+                f"PlasmoBlood: {patient_name} needs {blood_group} "
+                f"({distance_km:.1f}km away). "
+                f"Respond: {response_page}"
             )
             
-            # ✅ USE BLOCKING CALL to ensure SMS is actually sent
+            print(f"📱 SMS length: {len(sms_body)} chars")
             print(f"📱 Sending SMS to {donor.get('name')} at {clean_phone}...")
+            
             success = send_sms_fast2sms_blocking(clean_phone, sms_body)
             
             if success:
@@ -2247,7 +2253,250 @@ def test_sms_fast2sms():
         return f"✅ SMS sent successfully to {test_phone}. Check your phone!"
     else:
         return f"❌ SMS failed. Check console logs for errors."
-    
+
+@app.route("/r/<request_id>/<donor_id>")
+def donor_response_page(request_id, donor_id):
+    """
+    Mobile-friendly response page with Accept/Reject buttons
+    Shown when donor clicks SMS link
+    """
+    try:
+        # Fetch request details
+        request_ref = db.collection(get_request_collection()).document(request_id)
+        request_doc = request_ref.get()
+        
+        if not request_doc.exists:
+            return """
+            <html>
+            <head><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+            <body style="font-family: Arial, sans-serif; text-align: center; padding: 20px;">
+                <h2>❌ Request Not Found</h2>
+                <p>This blood/plasma request may have been cancelled or already fulfilled.</p>
+            </body>
+            </html>
+            """, 404
+        
+        request_data = request_doc.to_dict()
+        
+        # Check if already responded
+        if request_data.get("status") in ["accepted", "rejected"]:
+            return """
+            <html>
+            <head><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+            <body style="font-family: Arial, sans-serif; text-align: center; padding: 20px;">
+                <h2>⏱️ Already Responded</h2>
+                <p>This request has already been processed.</p>
+                <p>Thank you for your willingness to help!</p>
+            </body>
+            </html>
+            """
+        
+        # Fetch donor details
+        donor_ref = db.collection("users").document(donor_id)
+        donor_doc = donor_ref.get()
+        
+        if not donor_doc.exists:
+            return "<h2>❌ Donor not found</h2>", 404
+        
+        donor_data = donor_doc.to_dict()
+        
+        # Build accept/reject links
+        accept_link = url_for("donor_response", request_id=request_id, donor_id=donor_id, action="accept", _external=True)
+        reject_link = url_for("donor_response", request_id=request_id, donor_id=donor_id, action="reject", _external=True)
+        
+        # Mobile-friendly HTML with big buttons
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+            <title>Blood/Plasma Request</title>
+            <style>
+                * {{
+                    margin: 0;
+                    padding: 0;
+                    box-sizing: border-box;
+                }}
+                body {{
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    min-height: 100vh;
+                    padding: 20px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }}
+                .container {{
+                    background: white;
+                    border-radius: 16px;
+                    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+                    max-width: 500px;
+                    width: 100%;
+                    overflow: hidden;
+                }}
+                .header {{
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    padding: 30px 20px;
+                    text-align: center;
+                }}
+                .header h1 {{
+                    font-size: 24px;
+                    margin-bottom: 5px;
+                }}
+                .header p {{
+                    opacity: 0.9;
+                    font-size: 14px;
+                }}
+                .content {{
+                    padding: 30px 20px;
+                }}
+                .greeting {{
+                    font-size: 18px;
+                    margin-bottom: 20px;
+                    color: #333;
+                }}
+                .info-card {{
+                    background: #f8f9fa;
+                    border-left: 4px solid #667eea;
+                    padding: 20px;
+                    margin-bottom: 25px;
+                    border-radius: 8px;
+                }}
+                .info-row {{
+                    display: flex;
+                    margin-bottom: 12px;
+                    font-size: 15px;
+                }}
+                .info-row:last-child {{
+                    margin-bottom: 0;
+                }}
+                .info-label {{
+                    font-weight: bold;
+                    color: #667eea;
+                    min-width: 100px;
+                }}
+                .info-value {{
+                    color: #333;
+                }}
+                .buttons {{
+                    display: flex;
+                    flex-direction: column;
+                    gap: 15px;
+                    margin-top: 25px;
+                }}
+                .btn {{
+                    display: block;
+                    padding: 18px;
+                    border-radius: 12px;
+                    text-decoration: none;
+                    font-weight: bold;
+                    font-size: 18px;
+                    text-align: center;
+                    transition: transform 0.2s, box-shadow 0.2s;
+                    border: none;
+                    cursor: pointer;
+                }}
+                .btn:active {{
+                    transform: scale(0.98);
+                }}
+                .btn-accept {{
+                    background: #28a745;
+                    color: white;
+                    box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+                }}
+                .btn-accept:hover {{
+                    background: #218838;
+                    box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+                }}
+                .btn-reject {{
+                    background: #dc3545;
+                    color: white;
+                    box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
+                }}
+                .btn-reject:hover {{
+                    background: #c82333;
+                    box-shadow: 0 6px 20px rgba(220, 53, 69, 0.4);
+                }}
+                .footer {{
+                    padding: 20px;
+                    text-align: center;
+                    color: #666;
+                    font-size: 13px;
+                    border-top: 1px solid #eee;
+                }}
+                .urgent {{
+                    background: #fff3cd;
+                    border-left-color: #ffc107;
+                    padding: 15px;
+                    border-radius: 8px;
+                    margin-bottom: 20px;
+                    font-size: 14px;
+                    color: #856404;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>🩸 Blood/Plasma Request</h1>
+                    <p>Someone needs your help!</p>
+                </div>
+                
+                <div class="content">
+                    <div class="greeting">
+                        Hi <strong>{donor_data.get('name', 'Donor')}</strong> 👋
+                    </div>
+                    
+                    <div class="urgent">
+                        ⏰ <strong>Urgent:</strong> Please respond quickly to help save a life
+                    </div>
+                    
+                    <div class="info-card">
+                        <div class="info-row">
+                            <span class="info-label">Patient:</span>
+                            <span class="info-value">{request_data.get('patient_name', 'N/A')}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Blood Group:</span>
+                            <span class="info-value">{request_data.get('blood_group', 'N/A')}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Contact:</span>
+                            <span class="info-value">{request_data.get('phone', 'See email')}</span>
+                        </div>
+                        {f'''<div class="info-row">
+                            <span class="info-label">Details:</span>
+                            <span class="info-value">{request_data.get('details')}</span>
+                        </div>''' if request_data.get('details') else ''}
+                    </div>
+                    
+                    <div class="buttons">
+                        <a href="{accept_link}" class="btn btn-accept">
+                            ✅ Accept - I Can Help
+                        </a>
+                        <a href="{reject_link}" class="btn btn-reject">
+                            ❌ Decline - Not Available
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="footer">
+                    © PlasmoBlood Sync - Saving lives, one donation at a time
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        return html
+        
+    except Exception as e:
+        print(f"❌ Error in donor_response_page: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return f"<h2>❌ Error: {str(e)}</h2>", 500 
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
