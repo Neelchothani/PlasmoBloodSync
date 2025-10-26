@@ -640,13 +640,21 @@ def send_sms_fast2sms_blocking(phone_numbers, message):
 
 
 def send_sms_fast2sms_threaded(phone_numbers, message):
-    """Send Fast2SMS in background thread (non-blocking)"""
+    """Send Fast2SMS in background thread (non-blocking) - NON-DAEMON to ensure completion"""
     def _send():
-        success = send_sms_fast2sms_blocking(phone_numbers, message)
-        if not success:
-            print(f"⚠️ Failed to send SMS to {phone_numbers} - continuing anyway")
+        try:
+            success = send_sms_fast2sms_blocking(phone_numbers, message)
+            if success:
+                print(f"✅ SMS thread completed successfully for {phone_numbers}")
+            else:
+                print(f"⚠️ SMS thread failed for {phone_numbers}")
+        except Exception as e:
+            print(f"❌ SMS thread exception for {phone_numbers}: {str(e)}")
+            import traceback
+            traceback.print_exc()
     
-    thread = threading.Thread(target=_send, daemon=True)
+    # ✅ NON-DAEMON thread so it completes even if main request ends
+    thread = threading.Thread(target=_send, daemon=False)
     thread.start()
     print(f"📤 SMS queued for {phone_numbers}")
 
@@ -739,7 +747,7 @@ def _send_donor_request_email(request_id, donor, patient_name, blood_group, deta
     
     # === 2. SEND SMS (Fast2SMS - FREE!) ===
     if donor_phone:
-        # ✅ FIXED: Better phone cleaning and validation
+        # ✅ Better phone cleaning and validation
         phone_str = str(donor_phone).strip()
         
         # Remove common prefixes
@@ -753,7 +761,7 @@ def _send_donor_request_email(request_id, donor, patient_name, blood_group, deta
         # Remove any non-digit characters
         clean_phone = ''.join(filter(str.isdigit, phone_str))
         
-        # ✅ FIXED: More lenient validation (any 10-digit number)
+        # ✅ Validate: Must be exactly 10 digits
         if len(clean_phone) == 10 and clean_phone.isdigit():
             # Create concise SMS message
             sms_body = (
@@ -765,15 +773,19 @@ def _send_donor_request_email(request_id, donor, patient_name, blood_group, deta
                 f"Respond: {accept_link}"
             )
             
-            send_sms_fast2sms_threaded(
-                phone_numbers=clean_phone,
-                message=sms_body
-            )
-            print(f"📱 SMS queued for {donor.get('name')} at {clean_phone} ({distance_km:.1f}km)")
+            # ✅ USE BLOCKING CALL to ensure SMS is actually sent
+            print(f"📱 Sending SMS to {donor.get('name')} at {clean_phone}...")
+            success = send_sms_fast2sms_blocking(clean_phone, sms_body)
+            
+            if success:
+                print(f"✅ SMS sent to {donor.get('name')} at {clean_phone} ({distance_km:.1f}km)")
+            else:
+                print(f"❌ SMS failed for {donor.get('name')} at {clean_phone}")
         else:
             print(f"⚠️ Invalid phone format for {donor.get('name')}: '{donor_phone}' → cleaned: '{clean_phone}' (len={len(clean_phone)})")
     else:
         print(f"⚠️ No phone number for donor {donor.get('name')}")
+
 
 def clean_phone_for_fast2sms(phone):
     """
@@ -800,6 +812,7 @@ def clean_phone_for_fast2sms(phone):
     
     return None
 
+
 def send_bulk_sms_fast2sms(donors, message):
     """
     Send same SMS to multiple donors at once (more efficient)
@@ -824,7 +837,8 @@ def send_bulk_sms_fast2sms(donors, message):
     batch_size = 50
     for i in range(0, len(phone_list), batch_size):
         batch = phone_list[i:i+batch_size]
-        send_sms_fast2sms_threaded(batch, message)
+        # ✅ Use blocking call for bulk SMS too
+        send_sms_fast2sms_blocking(batch, message)
     
     return True
 # =========================================
