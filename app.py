@@ -1227,26 +1227,26 @@ def signup():
 
 @app.route("/google_login")
 def google_login():
-    # Get role from dropdown query param (default user)
+    # Get role and phone from query params
     role = request.args.get("role", "user")
+    phone = request.args.get("phone", "")  # ← NEW: Get phone number
     
-    # Convert donor to user (as per your new rule)
+    # Convert donor to user
     if role.lower() == "donor":
         role = "user"
 
     # Store temporarily for callback
     session["pending_role"] = role
-    session.permanent = True  # Make session persistent
+    session["pending_phone"] = phone  # ← NEW: Store phone in session
+    session.permanent = True
 
-    # CRITICAL FIX: Force HTTPS scheme for production
-    # Detect if we're on Render (or any production HTTPS environment)
+    # Force HTTPS scheme for production
     if request.headers.get('X-Forwarded-Proto') == 'https' or request.url.startswith('https://'):
         redirect_uri = url_for("google_callback", _external=True, _scheme='https')
     else:
-        # Local development fallback
         redirect_uri = url_for("google_callback", _external=True)
     
-    print(f"[OAuth] Redirect URI: {redirect_uri}")  # Debug log
+    print(f"[OAuth] Redirect URI: {redirect_uri}")
     
     return oauth.google.authorize_redirect(
         redirect_uri,
@@ -1282,6 +1282,10 @@ def google_callback():
             flash("Google account has no email.", "error")
             return redirect(url_for("signin"))
 
+        # ✅ NEW: Get phone from session
+        phone = session.get("pending_phone", "")
+        print(f"[Google Callback] Phone number: {phone}")
+
         users_ref = db.collection("users").document(email)
         snap = users_ref.get()
 
@@ -1294,17 +1298,28 @@ def google_callback():
             print(f"[Google Callback] New user, assigned role: {role}")
 
         session.pop("pending_role", None)
+        session.pop("pending_phone", None)  # ← NEW: Clear pending phone
 
         if role.lower() == "donor":
             role = "user"
 
-        users_ref.set({
+        # ✅ NEW: Save phone number to Firestore
+        user_data = {
             "email": email,
             "name": name,
             "picture": picture,
             "role": role,
             "last_login": datetime.utcnow().isoformat() + "Z"
-        }, merge=True)
+        }
+        
+        # Only add phone if provided (non-empty)
+        if phone and len(phone) == 10 and phone.isdigit():
+            user_data["phone"] = phone
+            print(f"[Google Callback] Saving phone: {phone}")
+        else:
+            print(f"[Google Callback] No valid phone provided")
+
+        users_ref.set(user_data, merge=True)
 
         print(f"[Google Callback] User saved to Firestore")
 
