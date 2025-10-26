@@ -32,6 +32,8 @@ from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail, Email, To, Content
 import os
 from dotenv import load_dotenv
+import requests
+import urllib.parse
 # Allow HTTP for local OAuth testing (never do this in production)
 # os.environ.setdefault("OAUTHLIB_INSECURE_TRANSPORT", "1")
 if os.environ.get("FLASK_ENV") == "development":
@@ -54,7 +56,7 @@ db = firestore.client()
 print("✅ Firebase and Firestore initialized successfully")
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "plasmo_secret_key_change_in_production")  # consider moving to env var
-
+FAST2SMS_API_KEY = os.environ.get("FAST2SMS_API_KEY")
 # Session cookie settings (good defaults for localhost)
 app.config.update(
     SESSION_COOKIE_SECURE=True,         # Required for HTTPS (Render)
@@ -88,6 +90,11 @@ EMAIL_ADDRESS = "neelchothani9417@gmail.com"      # Replace with your sender ema
 EMAIL_PASSWORD = "kfkq gibg zsis xfao"
 # Comma-separated admin email overrides, e.g. "admin@plasmo.com,owner@acme.com"
 ADMIN_EMAILS = {e.strip().lower() for e in os.getenv("ADMIN_EMAILS", "admin@plasmo.com").split(",") if e.strip()}
+
+if FAST2SMS_API_KEY:
+    print("✅ Fast2SMS configured successfully")
+else:
+    print("⚠️ FAST2SMS_API_KEY not configured - SMS disabled")
 
 oauth = OAuth(app)
 oauth.register(
@@ -525,92 +532,258 @@ def send_email_threaded(to_email, subject, html_body):
     thread.start()
     print(f"📤 Email queued for {to_email}")
 
+def send_sms_fast2sms_blocking(phone_numbers, message):
+    """
+    Send SMS using Fast2SMS API (FREE - ₹50 credit on signup)
+    
+    Args:
+        phone_numbers: String or list of phone numbers (without +91)
+                      Example: "9876543210" or ["9876543210", "9123456789"]
+        message: SMS text (max 500 characters)
+    
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    if not FAST2SMS_API_KEY:
+        print("⚠️ Fast2SMS not configured - SMS skipped")
+        return False
+    
+    try:
+        # Convert list to comma-separated string
+        if isinstance(phone_numbers, list):
+            phone_numbers = ",".join([str(p).lstrip('0').lstrip('+91') for p in phone_numbers])
+        else:
+            # Clean single number
+            phone_numbers = str(phone_numbers).lstrip('0').lstrip('+91')
+        
+        # Validate phone numbers (10 digits each)
+        for phone in phone_numbers.split(','):
+            if not phone.isdigit() or len(phone) != 10:
+                print(f"❌ Invalid phone number: {phone}")
+                return False
+        
+        print(f"📱 Sending SMS to {phone_numbers} via Fast2SMS")
+        
+        # Fast2SMS API endpoint
+        url = "https://www.fast2sms.com/dev/bulkV2"
+        
+        # Prepare payload
+        payload = {
+            "sender_id": "FSTSMS",  # Default sender ID (Fast2SMS)
+            "message": message[:500],  # Limit to 500 chars
+            "route": "v3",  # Promotional route (free tier)
+            "numbers": phone_numbers  # Comma-separated
+        }
+        
+        # Headers with API key
+        headers = {
+            "authorization": FAST2SMS_API_KEY,
+            "Content-Type": "application/json"
+        }
+        
+        # Send request
+        response = requests.post(url, json=payload, headers=headers, timeout=10)
+        response_data = response.json()
+        
+        # Check response
+        if response.status_code == 200 and response_data.get("return"):
+            print(f"✅ SMS sent successfully to {phone_numbers}")
+            print(f"   Message ID: {response_data.get('message_id')}")
+            return True
+        else:
+            print(f"❌ Fast2SMS Error: {response_data.get('message', 'Unknown error')}")
+            return False
+            
+    except requests.exceptions.Timeout:
+        print(f"❌ Fast2SMS timeout - request took too long")
+        return False
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Fast2SMS network error: {str(e)}")
+        return False
+    except Exception as e:
+        print(f"❌ Fast2SMS unexpected error: {str(e)}")
+        return False
+
+
+def send_sms_fast2sms_threaded(phone_numbers, message):
+    """Send Fast2SMS in background thread (non-blocking)"""
+    def _send():
+        success = send_sms_fast2sms_blocking(phone_numbers, message)
+        if not success:
+            print(f"⚠️ Failed to send SMS to {phone_numbers} - continuing anyway")
+    
+    thread = threading.Thread(target=_send, daemon=True)
+    thread.start()
+    print(f"📤 SMS queued for {phone_numbers}")
+
+
 def _send_donor_request_email(request_id, donor, patient_name, blood_group, details, phone):
     """
-    Send donor request email using SendGrid (non-blocking)
+    Send donor request via EMAIL + SMS (Fast2SMS - FREE!)
     """
     donor_email = donor.get("email")
+    donor_phone = donor.get("phone")
     donor_id = donor.get("id")
     distance_km = donor.get("distance", 0)
     
-    if not donor_email:
-        print(f"⚠️ Donor {donor.get('name')} has no email, skipping")
-        return
-
     # Build accept/reject links
     accept_link = f"{request.url_root}donor_response/{request_id}/{donor_id}/accept"
     reject_link = f"{request.url_root}donor_response/{request_id}/{donor_id}/reject"
+    
+    # Shorten URLs for SMS (optional - but saves characters)
+    # You can use bit.ly API or just use full URLs
+    
+    # === 1. SEND EMAIL ===
+    if donor_email:
+        html = f"""
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                           color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center; }}
+                .content {{ background: #f9f9f9; padding: 20px; border: 1px solid #ddd; }}
+                .info-box {{ background: white; padding: 15px; margin: 10px 0; 
+                            border-left: 4px solid #667eea; border-radius: 4px; }}
+                .info-label {{ font-weight: bold; color: #667eea; display: inline-block; 
+                              min-width: 120px; }}
+                .action-buttons {{ display: flex; gap: 10px; margin-top: 20px; 
+                                justify-content: center; flex-wrap: wrap; }}
+                .btn {{ display: inline-block; padding: 12px 24px; border-radius: 6px; 
+                       text-decoration: none; font-weight: bold; font-size: 16px; 
+                       border: none; cursor: pointer; text-align: center; min-width: 140px; }}
+                .btn-accept {{ background: #28a745; color: white; }}
+                .btn-reject {{ background: #dc3545; color: white; }}
+                .footer {{ background: #f0f0f0; padding: 15px; text-align: center; 
+                          font-size: 12px; color: #666; border-radius: 0 0 8px 8px; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h2 style="margin: 0;">🩸 Blood/Plasma Request</h2>
+                </div>
+                
+                <div class="content">
+                    <p>Hi <strong>{donor.get('name', 'Donor')}</strong>,</p>
+                    
+                    <p>A patient near you needs blood/plasma urgently. Can you help?</p>
+                    
+                    <div class="info-box">
+                        <div><span class="info-label">Patient:</span> {patient_name}</div>
+                        <div><span class="info-label">Blood Group:</span> {blood_group}</div>
+                        <div><span class="info-label">Distance:</span> {distance_km:.1f} km away</div>
+                        <div><span class="info-label">Contact:</span> {phone or 'N/A'}</div>
+                        {f'<div><span class="info-label">Details:</span> {details}</div>' if details else ''}
+                    </div>
+                    
+                    <div class="action-buttons">
+                        <a href="{accept_link}" class="btn btn-accept">✅ Accept Request</a>
+                        <a href="{reject_link}" class="btn btn-reject">❌ Reject Request</a>
+                    </div>
+                    
+                    <p style="margin-top: 20px; font-size: 14px; color: #666;">
+                        ⏰ Please respond quickly. Other donors may also be notified.
+                    </p>
+                </div>
+                
+                <div class="footer">
+                    <p>© PlasmoBlood Sync - Saving lives, one donation at a time</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        send_email_threaded(
+            to_email=donor_email,
+            subject=f"🩸 Urgent: Blood/Plasma Request - {blood_group} Needed",
+            html_body=html
+        )
+        print(f"📧 Email queued for {donor.get('name')} ({distance_km:.1f}km)")
+    else:
+        print(f"⚠️ No email for donor {donor.get('name')}")
+    
+    # === 2. SEND SMS (Fast2SMS - FREE!) ===
+    if donor_phone:
+        # Clean phone number (remove +91 if present)
+        clean_phone = str(donor_phone).lstrip('+').lstrip('91').lstrip('0')
+        
+        if len(clean_phone) == 10 and clean_phone.isdigit():
+            # Create concise SMS message (Fast2SMS supports 500 chars)
+            sms_body = (
+                f"URGENT: Blood/Plasma needed!\n"
+                f"Patient: {patient_name}\n"
+                f"Type: {blood_group}\n"
+                f"Distance: {distance_km:.1f}km\n"
+                f"Contact: {phone or 'N/A'}\n\n"
+                f"Respond: {accept_link[:50]}..."  # Shortened for SMS
+            )
+            
+            send_sms_fast2sms_threaded(
+                phone_numbers=clean_phone,
+                message=sms_body
+            )
+            print(f"📱 SMS queued for {donor.get('name')} at {clean_phone}")
+        else:
+            print(f"⚠️ Invalid phone format for {donor.get('name')}: {donor_phone}")
+    else:
+        print(f"⚠️ No phone number for donor {donor.get('name')}")
 
-    html = f"""
-    <html>
-    <head>
-        <meta charset="UTF-8">
-        <style>
-            body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
-            .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-            .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                       color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center; }}
-            .content {{ background: #f9f9f9; padding: 20px; border: 1px solid #ddd; }}
-            .info-box {{ background: white; padding: 15px; margin: 10px 0; 
-                        border-left: 4px solid #667eea; border-radius: 4px; }}
-            .info-label {{ font-weight: bold; color: #667eea; display: inline-block; 
-                          min-width: 120px; }}
-            .action-buttons {{ display: flex; gap: 10px; margin-top: 20px; 
-                            justify-content: center; flex-wrap: wrap; }}
-            .btn {{ display: inline-block; padding: 12px 24px; border-radius: 6px; 
-                   text-decoration: none; font-weight: bold; font-size: 16px; 
-                   border: none; cursor: pointer; text-align: center; min-width: 140px; }}
-            .btn-accept {{ background: #28a745; color: white; }}
-            .btn-reject {{ background: #dc3545; color: white; }}
-            .btn:hover {{ opacity: 0.9; }}
-            .distance {{ color: #666; font-size: 14px; margin-top: 5px; }}
-            .footer {{ background: #f0f0f0; padding: 15px; text-align: center; 
-                      font-size: 12px; color: #666; border-radius: 0 0 8px 8px; }}
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <div class="header">
-                <h2 style="margin: 0;">🩸 Blood/Plasma Request</h2>
-            </div>
-            
-            <div class="content">
-                <p>Hi <strong>{donor.get('name', 'Donor')}</strong>,</p>
-                
-                <p>A patient near you needs blood/plasma urgently. Can you help?</p>
-                
-                <div class="info-box">
-                    <div><span class="info-label">Patient:</span> {patient_name}</div>
-                    <div><span class="info-label">Blood Group:</span> {blood_group}</div>
-                    <div><span class="info-label">Distance:</span> {distance_km:.1f} km away</div>
-                    <div><span class="info-label">Contact:</span> {phone or 'N/A'}</div>
-                    {f'<div><span class="info-label">Details:</span> {details}</div>' if details else ''}
-                </div>
-                
-                <div class="action-buttons">
-                    <a href="{accept_link}" class="btn btn-accept">✅ Accept Request</a>
-                    <a href="{reject_link}" class="btn btn-reject">❌ Reject Request</a>
-                </div>
-                
-                <p style="margin-top: 20px; font-size: 14px; color: #666;">
-                    ⏰ Please respond quickly. Other donors may also be notified.
-                </p>
-            </div>
-            
-            <div class="footer">
-                <p>© PlasmoBlood Sync - Saving lives, one donation at a time</p>
-            </div>
-        </div>
-    </body>
-    </html>
+def clean_phone_for_fast2sms(phone):
     """
+    Convert phone to Fast2SMS format (10 digits, no +91)
+    
+    Examples:
+        +919876543210 → 9876543210
+        919876543210 → 9876543210
+        9876543210 → 9876543210
+    """
+    if not phone:
+        return None
+    
+    # Remove all non-digits
+    phone = re.sub(r'\D', '', str(phone))
+    
+    # Remove country code if present
+    if phone.startswith('91') and len(phone) == 12:
+        phone = phone[2:]
+    
+    # Validate
+    if len(phone) == 10 and phone.isdigit():
+        return phone
+    
+    return None
 
-    send_email_threaded(
-        to_email=donor_email,
-        subject=f"🩸 Urgent: Blood/Plasma Request - {blood_group} Needed",
-        html_body=html
-    )
-    print(f"📧 Request notification sent to {donor.get('name')} ({distance_km:.1f}km)")
+def send_bulk_sms_fast2sms(donors, message):
+    """
+    Send same SMS to multiple donors at once (more efficient)
+    
+    Args:
+        donors: List of donor dicts with 'phone' key
+        message: SMS text
+    """
+    # Extract and clean phone numbers
+    phone_list = []
+    for donor in donors:
+        clean_phone = clean_phone_for_fast2sms(donor.get('phone'))
+        if clean_phone:
+            phone_list.append(clean_phone)
+    
+    if not phone_list:
+        print("⚠️ No valid phone numbers to send SMS")
+        return False
+    
+    # Fast2SMS supports comma-separated numbers (up to 50 per request)
+    # Split into batches if more than 50
+    batch_size = 50
+    for i in range(0, len(phone_list), batch_size):
+        batch = phone_list[i:i+batch_size]
+        send_sms_fast2sms_threaded(batch, message)
+    
+    return True
 # =========================================
 # ---------------- ROUTES -----------------
 # =========================================
@@ -1924,6 +2097,24 @@ def get_top_donors():
             "message": str(e),
             "top_donors": []
         }), 500
+
+@app.route("/test-sms-fast2sms")
+def test_sms_fast2sms():
+    """Test route to verify Fast2SMS works"""
+    if not app.debug and session.get("role") != "admin":
+        return "Test route disabled", 403
+    
+    # Test with your own number
+    test_phone = "8850134584"  # Replace with YOUR number (10 digits only)
+    test_message = "Test SMS from PlasmoBlood Sync! Your free Fast2SMS integration is working."
+    
+    success = send_sms_fast2sms_blocking(test_phone, test_message)
+    
+    if success:
+        return f"✅ SMS sent successfully to {test_phone}. Check your phone!"
+    else:
+        return f"❌ SMS failed. Check console logs for errors."
+    
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
