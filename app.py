@@ -548,6 +548,10 @@ def send_sms_fast2sms_blocking(phone_numbers, message):
         print("⚠️ Fast2SMS not configured - SMS skipped")
         return False
     
+    # ✅ VERIFY API KEY IS SET
+    print(f"🔑 API Key present: {len(FAST2SMS_API_KEY)} characters")
+    print(f"🔑 API Key preview: {FAST2SMS_API_KEY[:15]}..." if len(FAST2SMS_API_KEY) > 15 else f"🔑 API Key: {FAST2SMS_API_KEY}")
+    
     try:
         # Convert list to comma-separated string
         if isinstance(phone_numbers, list):
@@ -581,19 +585,26 @@ def send_sms_fast2sms_blocking(phone_numbers, message):
             "Content-Type": "application/json"
         }
         
+        print(f"📤 Request URL: {url}")
         print(f"📤 Request payload: {payload}")
+        print(f"📤 Headers: authorization={FAST2SMS_API_KEY[:15]}..., Content-Type=application/json")
         
         # Send request
+        print("⏳ Making HTTP request to Fast2SMS...")
         response = requests.post(url, json=payload, headers=headers, timeout=10)
         
         # Log full response for debugging
         print(f"📊 Fast2SMS HTTP Status: {response.status_code}")
         print(f"📊 Fast2SMS Raw Response: {response.text}")
+        print(f"📊 Response Headers: {dict(response.headers)}")
         
+        # Try to parse JSON
         try:
             response_data = response.json()
-        except:
+            print(f"📊 Parsed JSON: {response_data}")
+        except Exception as json_err:
             print(f"❌ Failed to parse JSON response: {response.text}")
+            print(f"❌ JSON parse error: {str(json_err)}")
             return False
         
         # Check response
@@ -604,13 +615,16 @@ def send_sms_fast2sms_blocking(phone_numbers, message):
         else:
             error_msg = response_data.get('message', 'Unknown error')
             print(f"❌ Fast2SMS Error: {error_msg}")
-            print(f"❌ Full response: {response_data}")
+            print(f"❌ Full response dict: {response_data}")
+            print(f"❌ Return value: {response_data.get('return')}")
+            print(f"❌ Status code: {response.status_code}")
             
             # Helpful error messages
             if "authorization" in error_msg.lower() or "invalid" in error_msg.lower():
                 print("⚠️ ERROR: Invalid API key!")
                 print(f"   → Check your FAST2SMS_API_KEY in Render environment variables")
-                print(f"   → Current key (first 10 chars): {FAST2SMS_API_KEY[:10]}...")
+                print(f"   → Current key length: {len(FAST2SMS_API_KEY)} chars")
+                print(f"   → Expected: Should be a long alphanumeric string")
             elif "balance" in error_msg.lower() or "insufficient" in error_msg.lower():
                 print("⚠️ ERROR: Insufficient balance!")
                 print(f"   → Recharge at https://www.fast2sms.com/dashboard")
@@ -623,6 +637,9 @@ def send_sms_fast2sms_blocking(phone_numbers, message):
             elif "route" in error_msg.lower():
                 print("⚠️ ERROR: Invalid route!")
                 print(f"   → Available routes: 'q' (promotional), 'otp', 'dlt'")
+            else:
+                print(f"⚠️ Unknown error. Full response:")
+                print(f"   {response_data}")
             
             return False
             
@@ -631,6 +648,8 @@ def send_sms_fast2sms_blocking(phone_numbers, message):
         return False
     except requests.exceptions.RequestException as e:
         print(f"❌ Fast2SMS network error: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return False
     except Exception as e:
         print(f"❌ Fast2SMS unexpected error: {str(e)}")
