@@ -564,10 +564,10 @@ def send_sms_fast2sms_blocking(phone_numbers, message):
         
         print(f"📱 Sending SMS to {phone_numbers} via Fast2SMS (New API)")
         
-        # ✅ UPDATED: New Fast2SMS API endpoint
+        # Fast2SMS API endpoint
         url = "https://www.fast2sms.com/dev/bulkV2"
         
-        # ✅ UPDATED: New payload format
+        # Prepare payload - Try promotional route first
         payload = {
             "message": message[:500],  # Limit to 500 chars
             "language": "english",
@@ -575,17 +575,26 @@ def send_sms_fast2sms_blocking(phone_numbers, message):
             "numbers": phone_numbers  # Comma-separated
         }
         
-        # ✅ UPDATED: New headers format
+        # Headers with API key
         headers = {
             "authorization": FAST2SMS_API_KEY,
             "Content-Type": "application/json"
         }
         
+        print(f"📤 Request payload: {payload}")
+        
         # Send request
         response = requests.post(url, json=payload, headers=headers, timeout=10)
-        response_data = response.json()
         
-        print(f"📊 Fast2SMS Response: {response_data}")
+        # Log full response for debugging
+        print(f"📊 Fast2SMS HTTP Status: {response.status_code}")
+        print(f"📊 Fast2SMS Raw Response: {response.text}")
+        
+        try:
+            response_data = response.json()
+        except:
+            print(f"❌ Failed to parse JSON response: {response.text}")
+            return False
         
         # Check response
         if response.status_code == 200 and response_data.get("return"):
@@ -595,14 +604,25 @@ def send_sms_fast2sms_blocking(phone_numbers, message):
         else:
             error_msg = response_data.get('message', 'Unknown error')
             print(f"❌ Fast2SMS Error: {error_msg}")
+            print(f"❌ Full response: {response_data}")
             
             # Helpful error messages
-            if "authorization" in error_msg.lower():
-                print("⚠️ Check your FAST2SMS_API_KEY in environment variables")
-            elif "balance" in error_msg.lower():
-                print("⚠️ Insufficient balance. Recharge at https://www.fast2sms.com/dashboard")
-            elif "100 INR" in error_msg:
-                print("⚠️ Complete minimum ₹100 transaction first")
+            if "authorization" in error_msg.lower() or "invalid" in error_msg.lower():
+                print("⚠️ ERROR: Invalid API key!")
+                print(f"   → Check your FAST2SMS_API_KEY in Render environment variables")
+                print(f"   → Current key (first 10 chars): {FAST2SMS_API_KEY[:10]}...")
+            elif "balance" in error_msg.lower() or "insufficient" in error_msg.lower():
+                print("⚠️ ERROR: Insufficient balance!")
+                print(f"   → Recharge at https://www.fast2sms.com/dashboard")
+            elif "100 INR" in error_msg or "transaction" in error_msg.lower():
+                print("⚠️ ERROR: Minimum ₹100 transaction required!")
+                print(f"   → Complete first recharge at https://www.fast2sms.com/dashboard")
+            elif "DLT" in error_msg.upper():
+                print("⚠️ ERROR: DLT template required for this route!")
+                print(f"   → Try route 'q' (promotional) instead of 'dlt'")
+            elif "route" in error_msg.lower():
+                print("⚠️ ERROR: Invalid route!")
+                print(f"   → Available routes: 'q' (promotional), 'otp', 'dlt'")
             
             return False
             
