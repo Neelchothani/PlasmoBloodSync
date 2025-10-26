@@ -534,7 +534,7 @@ def send_email_threaded(to_email, subject, html_body):
 
 def send_sms_fast2sms_blocking(phone_numbers, message):
     """
-    Send SMS using Fast2SMS API (FREE - ₹50 credit on signup)
+    Send SMS using Fast2SMS API (NEW API v3)
     
     Args:
         phone_numbers: String or list of phone numbers (without +91)
@@ -562,20 +562,20 @@ def send_sms_fast2sms_blocking(phone_numbers, message):
                 print(f"❌ Invalid phone number: {phone}")
                 return False
         
-        print(f"📱 Sending SMS to {phone_numbers} via Fast2SMS")
+        print(f"📱 Sending SMS to {phone_numbers} via Fast2SMS (New API)")
         
-        # Fast2SMS API endpoint
+        # ✅ UPDATED: New Fast2SMS API endpoint
         url = "https://www.fast2sms.com/dev/bulkV2"
         
-        # Prepare payload
+        # ✅ UPDATED: New payload format
         payload = {
-            "sender_id": "FSTSMS",  # Default sender ID (Fast2SMS)
             "message": message[:500],  # Limit to 500 chars
-            "route": "v3",  # Promotional route (free tier)
+            "language": "english",
+            "route": "q",  # Quick/Promotional route
             "numbers": phone_numbers  # Comma-separated
         }
         
-        # Headers with API key
+        # ✅ UPDATED: New headers format
         headers = {
             "authorization": FAST2SMS_API_KEY,
             "Content-Type": "application/json"
@@ -585,13 +585,25 @@ def send_sms_fast2sms_blocking(phone_numbers, message):
         response = requests.post(url, json=payload, headers=headers, timeout=10)
         response_data = response.json()
         
+        print(f"📊 Fast2SMS Response: {response_data}")
+        
         # Check response
         if response.status_code == 200 and response_data.get("return"):
             print(f"✅ SMS sent successfully to {phone_numbers}")
-            print(f"   Message ID: {response_data.get('message_id')}")
+            print(f"   Message ID: {response_data.get('request_id')}")
             return True
         else:
-            print(f"❌ Fast2SMS Error: {response_data.get('message', 'Unknown error')}")
+            error_msg = response_data.get('message', 'Unknown error')
+            print(f"❌ Fast2SMS Error: {error_msg}")
+            
+            # Helpful error messages
+            if "authorization" in error_msg.lower():
+                print("⚠️ Check your FAST2SMS_API_KEY in environment variables")
+            elif "balance" in error_msg.lower():
+                print("⚠️ Insufficient balance. Recharge at https://www.fast2sms.com/dashboard")
+            elif "100 INR" in error_msg:
+                print("⚠️ Complete minimum ₹100 transaction first")
+            
             return False
             
     except requests.exceptions.Timeout:
@@ -602,6 +614,8 @@ def send_sms_fast2sms_blocking(phone_numbers, message):
         return False
     except Exception as e:
         print(f"❌ Fast2SMS unexpected error: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return False
 
 
