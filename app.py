@@ -548,22 +548,51 @@ def send_sms_fast2sms_blocking(phone_numbers, message):
         print("⚠️ Fast2SMS not configured - SMS skipped")
         return False
     
-    # ✅ VERIFY API KEY IS SET
-    print(f"🔑 API Key present: {len(FAST2SMS_API_KEY)} characters")
-    print(f"🔑 API Key preview: {FAST2SMS_API_KEY[:15]}..." if len(FAST2SMS_API_KEY) > 15 else f"🔑 API Key: {FAST2SMS_API_KEY}")
-    
     try:
         # Convert list to comma-separated string
         if isinstance(phone_numbers, list):
-            phone_numbers = ",".join([str(p).lstrip('0').lstrip('+91') for p in phone_numbers])
+            # ✅ FIXED: Process each phone number correctly
+            cleaned_phones = []
+            for p in phone_numbers:
+                phone_str = str(p).strip()
+                # Remove +91 prefix if present
+                if phone_str.startswith('+91'):
+                    phone_str = phone_str[3:]
+                elif phone_str.startswith('91') and len(phone_str) == 12:
+                    phone_str = phone_str[2:]
+                # Remove leading zero
+                if phone_str.startswith('0'):
+                    phone_str = phone_str[1:]
+                # Keep only digits
+                phone_str = ''.join(filter(str.isdigit, phone_str))
+                cleaned_phones.append(phone_str)
+            phone_numbers = ",".join(cleaned_phones)
         else:
-            # Clean single number
-            phone_numbers = str(phone_numbers).lstrip('0').lstrip('+91')
+            # ✅ FIXED: Clean single number correctly
+            phone_str = str(phone_numbers).strip()
+            print(f"🔍 Original phone: '{phone_str}'")
+            
+            # Remove +91 prefix if present
+            if phone_str.startswith('+91'):
+                phone_str = phone_str[3:]
+                print(f"🔍 After removing +91: '{phone_str}'")
+            elif phone_str.startswith('91') and len(phone_str) == 12:
+                phone_str = phone_str[2:]
+                print(f"🔍 After removing 91: '{phone_str}'")
+            
+            # Remove leading zero
+            if phone_str.startswith('0'):
+                phone_str = phone_str[1:]
+                print(f"🔍 After removing 0: '{phone_str}'")
+            
+            # Keep only digits
+            phone_numbers = ''.join(filter(str.isdigit, phone_str))
+            print(f"🔍 Final cleaned: '{phone_numbers}'")
         
         # Validate phone numbers (10 digits each)
         for phone in phone_numbers.split(','):
             if not phone.isdigit() or len(phone) != 10:
-                print(f"❌ Invalid phone number: {phone}")
+                print(f"❌ Invalid phone number: {phone} (length: {len(phone)})")
                 return False
         
         print(f"📱 Sending SMS to {phone_numbers} via Fast2SMS (New API)")
@@ -585,26 +614,19 @@ def send_sms_fast2sms_blocking(phone_numbers, message):
             "Content-Type": "application/json"
         }
         
-        print(f"📤 Request URL: {url}")
         print(f"📤 Request payload: {payload}")
-        print(f"📤 Headers: authorization={FAST2SMS_API_KEY[:15]}..., Content-Type=application/json")
         
         # Send request
-        print("⏳ Making HTTP request to Fast2SMS...")
         response = requests.post(url, json=payload, headers=headers, timeout=10)
         
         # Log full response for debugging
         print(f"📊 Fast2SMS HTTP Status: {response.status_code}")
         print(f"📊 Fast2SMS Raw Response: {response.text}")
-        print(f"📊 Response Headers: {dict(response.headers)}")
         
-        # Try to parse JSON
         try:
             response_data = response.json()
-            print(f"📊 Parsed JSON: {response_data}")
-        except Exception as json_err:
+        except:
             print(f"❌ Failed to parse JSON response: {response.text}")
-            print(f"❌ JSON parse error: {str(json_err)}")
             return False
         
         # Check response
@@ -615,16 +637,13 @@ def send_sms_fast2sms_blocking(phone_numbers, message):
         else:
             error_msg = response_data.get('message', 'Unknown error')
             print(f"❌ Fast2SMS Error: {error_msg}")
-            print(f"❌ Full response dict: {response_data}")
-            print(f"❌ Return value: {response_data.get('return')}")
-            print(f"❌ Status code: {response.status_code}")
+            print(f"❌ Full response: {response_data}")
             
             # Helpful error messages
             if "authorization" in error_msg.lower() or "invalid" in error_msg.lower():
                 print("⚠️ ERROR: Invalid API key!")
                 print(f"   → Check your FAST2SMS_API_KEY in Render environment variables")
-                print(f"   → Current key length: {len(FAST2SMS_API_KEY)} chars")
-                print(f"   → Expected: Should be a long alphanumeric string")
+                print(f"   → Current key (first 10 chars): {FAST2SMS_API_KEY[:10]}...")
             elif "balance" in error_msg.lower() or "insufficient" in error_msg.lower():
                 print("⚠️ ERROR: Insufficient balance!")
                 print(f"   → Recharge at https://www.fast2sms.com/dashboard")
@@ -637,9 +656,6 @@ def send_sms_fast2sms_blocking(phone_numbers, message):
             elif "route" in error_msg.lower():
                 print("⚠️ ERROR: Invalid route!")
                 print(f"   → Available routes: 'q' (promotional), 'otp', 'dlt'")
-            else:
-                print(f"⚠️ Unknown error. Full response:")
-                print(f"   {response_data}")
             
             return False
             
@@ -648,8 +664,6 @@ def send_sms_fast2sms_blocking(phone_numbers, message):
         return False
     except requests.exceptions.RequestException as e:
         print(f"❌ Fast2SMS network error: {str(e)}")
-        import traceback
-        traceback.print_exc()
         return False
     except Exception as e:
         print(f"❌ Fast2SMS unexpected error: {str(e)}")
@@ -1344,9 +1358,9 @@ def google_callback():
             flash("Google account has no email.", "error")
             return redirect(url_for("signin"))
 
-        # ✅ NEW: Get phone from session
+        # ✅ Get phone from session
         phone = session.get("pending_phone", "")
-        print(f"[Google Callback] Phone number: {phone}")
+        print(f"[Google Callback] Raw phone from session: '{phone}'")
 
         users_ref = db.collection("users").document(email)
         snap = users_ref.get()
@@ -1360,12 +1374,12 @@ def google_callback():
             print(f"[Google Callback] New user, assigned role: {role}")
 
         session.pop("pending_role", None)
-        session.pop("pending_phone", None)  # ← NEW: Clear pending phone
+        session.pop("pending_phone", None)
 
         if role.lower() == "donor":
             role = "user"
 
-        # ✅ NEW: Save phone number to Firestore
+        # ✅ Prepare user data
         user_data = {
             "email": email,
             "name": name,
@@ -1374,17 +1388,44 @@ def google_callback():
             "last_login": datetime.utcnow().isoformat() + "Z"
         }
         
-        # Only add phone if provided (non-empty)
-        if phone and len(phone) == 10 and phone.isdigit():
-            user_data["phone"] = phone
-            print(f"[Google Callback] Saving phone: {phone}")
+        # ✅ NORMALIZE and save phone number
+        if phone:
+            # Remove all non-digit characters
+            clean_phone = ''.join(filter(str.isdigit, phone))
+            print(f"[Google Callback] Cleaned phone (digits only): '{clean_phone}' (length: {len(clean_phone)})")
+            
+            # Handle different formats
+            if len(clean_phone) == 12 and clean_phone.startswith('91'):
+                # Format: 919819029098 → +919819029098
+                normalized_phone = f"+{clean_phone}"
+                print(f"[Google Callback] Detected 12-digit with country code")
+            elif len(clean_phone) == 10:
+                # Format: 9819029098 → +919819029098
+                normalized_phone = f"+91{clean_phone}"
+                print(f"[Google Callback] Detected 10-digit number")
+            elif len(clean_phone) == 11 and clean_phone.startswith('0'):
+                # Format: 09819029098 → +919819029098
+                normalized_phone = f"+91{clean_phone[1:]}"
+                print(f"[Google Callback] Detected 11-digit with leading 0")
+            else:
+                # Invalid format - don't save
+                print(f"[Google Callback] Invalid phone format: '{phone}' (cleaned: '{clean_phone}', length: {len(clean_phone)})")
+                normalized_phone = None
+            
+            # Save normalized phone
+            if normalized_phone:
+                user_data["phone"] = normalized_phone
+                print(f"[Google Callback] Saving phone: {normalized_phone}")
+            else:
+                print(f"[Google Callback] Phone not saved due to invalid format")
         else:
-            print(f"[Google Callback] No valid phone provided")
+            print(f"[Google Callback] No phone number provided")
 
+        # Save to Firestore
         users_ref.set(user_data, merge=True)
-
         print(f"[Google Callback] User saved to Firestore")
 
+        # Set session
         session.permanent = True
         session["email"] = email
         session["username"] = name
@@ -1395,6 +1436,7 @@ def google_callback():
 
         flash("Signed in successfully ✔️", "success")
 
+        # Redirect based on role
         if role == "admin":
             print("[Google Callback] Redirecting to admin_home")
             return redirect(url_for("admin_home"))
