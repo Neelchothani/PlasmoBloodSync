@@ -534,15 +534,15 @@ def send_email_threaded(to_email, subject, html_body):
 
 def send_sms_fast2sms_blocking(phone_numbers, message):
     """
-    Send SMS using Fast2SMS - INBOX DELIVERY (No DLT registration needed!)
+    Send SMS using Fast2SMS NEW API (2024)
     
-    TESTED ROUTES FOR STUDENTS:
-    1. Promotional Route (route='p') - Usually goes to inbox for transactional content
-    2. Transactional Route (route='t') - Best for inbox but may require higher balance
+    IMPORTANT: Fast2SMS changed their API in 2024
+    - Old endpoint: /dev/bulkV2 (deprecated)
+    - New endpoint: /dev/v3/bulkV2 (current)
     
     Args:
         phone_numbers: String or list of 10-digit numbers
-        message: SMS text (keep under 160 chars for best delivery)
+        message: SMS text (keep under 160 chars)
     
     Returns:
         bool: True if successful
@@ -564,7 +564,7 @@ def send_sms_fast2sms_blocking(phone_numbers, message):
                 if phone_str.startswith('0'):
                     phone_str = phone_str[1:]
                 phone_str = ''.join(filter(str.isdigit, phone_str))
-                if phone_str:
+                if phone_str and len(phone_str) == 10:
                     cleaned_phones.append(phone_str)
             phone_numbers = ",".join(cleaned_phones)
         else:
@@ -583,28 +583,27 @@ def send_sms_fast2sms_blocking(phone_numbers, message):
                 print(f"❌ Invalid phone: {phone}")
                 return False
         
-        print(f"📱 Sending SMS to {phone_numbers} via Fast2SMS (Promotional Route)")
+        print(f"📱 Sending SMS to {phone_numbers} via Fast2SMS (NEW API)")
         
-        # === STEP 2: Use Promotional Route (best for students) ===
-        url = "https://www.fast2sms.com/dev/bulkV2"
+        # === STEP 2: Use NEW API endpoint (v3) ===
+        url = "https://www.fast2sms.com/dev/v3/bulkV2"  # ✅ NEW endpoint
         
-        # ✅ PROMOTIONAL ROUTE - Goes to inbox if message looks transactional
+        # Simple promotional route (no DLT needed)
         payload = {
-            "message": message[:160],  # Keep under 160 for better delivery
-            "route": "p",              # 'p' = Promotional (no DLT needed)
+            "route": "p",              # Promotional route
+            "sender_id": "FSTSMS",     # Default sender ID
+            "message": message[:160],  # Keep under 160 chars
             "language": "english",
-            "flash": 0,                # 0 = normal SMS, 1 = flash (popup)
+            "flash": 0,
             "numbers": phone_numbers
         }
-        
-        # Alternative: Try unicode for better compatibility
-        # payload["unicode"] = 1  # Uncomment if 'p' route still goes to spam
         
         headers = {
             "authorization": FAST2SMS_API_KEY,
             "Content-Type": "application/json"
         }
         
+        print(f"📤 URL: {url}")
         print(f"📤 Payload: {payload}")
         
         # === STEP 3: Send SMS ===
@@ -612,47 +611,51 @@ def send_sms_fast2sms_blocking(phone_numbers, message):
         
         print(f"📊 HTTP {response.status_code}: {response.text}")
         
-        # === STEP 4: Check response ===
+        # === STEP 4: Parse response ===
         try:
             response_data = response.json()
         except:
-            print(f"❌ Invalid JSON: {response.text}")
+            print(f"❌ Invalid JSON response: {response.text}")
             return False
         
-        # === STEP 5: Success check ===
+        # === STEP 5: Check success ===
         if response.status_code == 200 and response_data.get("return"):
-            print(f"✅ SMS sent to {phone_numbers}")
+            print(f"✅ SMS sent successfully to {phone_numbers}")
             print(f"   Message ID: {response_data.get('request_id')}")
-            print(f"   Route: Promotional (should reach inbox)")
             return True
         else:
             error_msg = response_data.get('message', 'Unknown error')
             print(f"❌ Fast2SMS Error: {error_msg}")
             
-            # Helpful error messages
-            if "authorization" in error_msg.lower():
-                print("⚠️ Invalid API key - check FAST2SMS_API_KEY in .env")
+            # Common errors
+            if "authorization" in error_msg.lower() or "invalid" in error_msg.lower():
+                print("⚠️ Invalid API key")
+                print("   → Go to: https://www.fast2sms.com/dashboard/dev-api")
+                print("   → Copy your API key")
+                print("   → Update FAST2SMS_API_KEY in your .env file")
             elif "balance" in error_msg.lower():
                 print("⚠️ Insufficient balance")
                 print("   → Recharge at: https://www.fast2sms.com/dashboard")
-                print("   → Minimum: ₹20 for testing")
             elif "route" in error_msg.lower():
-                print("⚠️ Route 'p' (promotional) issue")
-                print("   Try these alternatives:")
-                print("   1. Add unicode: 1 to payload")
-                print("   2. Reduce message length under 140 chars")
-                print("   3. Remove special characters from message")
+                print("⚠️ Route issue")
+                print("   → Check if promotional route is enabled in dashboard")
+            elif "old api" in error_msg.lower():
+                print("⚠️ API endpoint is outdated!")
+                print("   → This shouldn't happen with v3 endpoint")
             
             return False
             
     except requests.exceptions.Timeout:
-        print(f"❌ Fast2SMS timeout")
+        print(f"❌ Fast2SMS timeout (took >10 seconds)")
+        return False
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Network error: {str(e)}")
         return False
     except Exception as e:
-        print(f"❌ Fast2SMS error: {str(e)}")
+        print(f"❌ Unexpected error: {str(e)}")
         import traceback
         traceback.print_exc()
-        return False
+        return False    
 
 
 def send_sms_fast2sms_threaded(phone_numbers, message):
@@ -681,8 +684,7 @@ def send_sms_fast2sms_threaded(phone_numbers, message):
 
 def _send_donor_request_email(request_id, donor, patient_name, blood_group, details, phone):
     """
-    Send donor request via EMAIL + SMS
-    OPTIMIZED: Message format to avoid spam filters
+    Send donor request via EMAIL + SMS (NEW API)
     """
     donor_email = donor.get("email")
     donor_phone = donor.get("phone")
@@ -693,7 +695,7 @@ def _send_donor_request_email(request_id, donor, patient_name, blood_group, deta
     accept_link = f"{request.url_root}donor_response/{request_id}/{donor_id}/accept"
     reject_link = f"{request.url_root}donor_response/{request_id}/{donor_id}/reject"
     
-    # === 1. SEND EMAIL (unchanged) ===
+    # === 1. SEND EMAIL ===
     if donor_email:
         html = f"""
         <html>
@@ -760,7 +762,7 @@ def _send_donor_request_email(request_id, donor, patient_name, blood_group, deta
         )
         print(f"📧 Email queued for {donor.get('name')} ({distance_km:.1f}km)")
     
-    # === 2. SEND SMS (OPTIMIZED MESSAGE) ===
+    # === 2. SEND SMS ===
     if donor_phone:
         phone_str = str(donor_phone).strip()
         
@@ -778,29 +780,20 @@ def _send_donor_request_email(request_id, donor, patient_name, blood_group, deta
             # Create short response link
             response_page = f"{request.url_root}r/{request_id}/{donor_id}"
             
-            # ✅ CRITICAL: Clean message format to avoid spam
-            # AVOID: "URGENT", "CLICK HERE", "!!!", excessive caps, http://
-            # KEEP: Simple, clear, professional language
-            
-            # Remove http:// from URL to avoid spam filter
+            # Clean URL (remove protocol to avoid spam)
             clean_url = response_page.replace("https://", "").replace("http://", "")
             
-            # Simple, clean message (under 140 chars recommended)
+            # Simple message (under 140 chars)
             sms_body = f"Blood needed: {patient_name} ({blood_group}). Respond at {clean_url}"
             
-            # Alternative shorter format if over 140 chars
+            # Fallback if too long
             if len(sms_body) > 140:
                 sms_body = f"{patient_name} needs {blood_group}. Reply: {clean_url}"
-            
-            # Last resort - super short
-            if len(sms_body) > 140:
-                # Use bit.ly or similar if you have it
-                sms_body = f"{blood_group} needed. Contact {phone or 'via email'}"
             
             print(f"📱 SMS ({len(sms_body)} chars): {sms_body}")
             print(f"📱 Sending to {donor.get('name')} at {clean_phone}...")
             
-            # Use blocking call to ensure delivery
+            # Send SMS
             success = send_sms_fast2sms_blocking(clean_phone, sms_body)
             
             if success:
@@ -812,68 +805,6 @@ def _send_donor_request_email(request_id, donor, patient_name, blood_group, deta
     else:
         print(f"⚠️ No phone for {donor.get('name')}")
 
-
-# === TEST ROUTE ===
-@app.route("/test-sms-inbox")
-def test_sms_inbox():
-    """Test SMS with inbox-optimized message"""
-    if session.get("role") != "admin" and not app.debug:
-        return "Unauthorized", 403
-    
-    test_phone = "8850134584"  # Replace with your number
-    
-    # Clean, simple message (no spam triggers)
-    test_message = "Blood donation request from PlasmoBlood. Patient needs help. Reply to assist."
-    
-    print("=" * 50)
-    print("🧪 TESTING SMS (Promotional Route - Inbox Delivery)")
-    print("=" * 50)
-    print(f"Message length: {len(test_message)} chars")
-    print(f"Message: {test_message}")
-    
-    success = send_sms_fast2sms_blocking(test_phone, test_message)
-    
-    if success:
-        return f"""
-        <html>
-        <head><title>SMS Test</title></head>
-        <body style="font-family: Arial; padding: 20px;">
-            <h2 style="color: green;">✅ SMS Sent Successfully!</h2>
-            <p><strong>Check your phone's MAIN INBOX (not spam)</strong></p>
-            <p>Message sent: "{test_message}"</p>
-            <hr>
-            <h3>If still going to spam, try these:</h3>
-            <ol>
-                <li><strong>Whitelist Fast2SMS:</strong> Save sender to contacts</li>
-                <li><strong>Report as "Not Spam":</strong> Mark one SMS as not spam</li>
-                <li><strong>Shorten message:</strong> Keep under 100 characters</li>
-                <li><strong>Remove URLs:</strong> Use phone numbers instead of links</li>
-            </ol>
-            <a href="/dashboard" style="display: inline-block; margin-top: 20px; 
-               padding: 10px 20px; background: #667eea; color: white; 
-               text-decoration: none; border-radius: 5px;">Back to Dashboard</a>
-        </body>
-        </html>
-        """
-    else:
-        return f"""
-        <html>
-        <head><title>SMS Test Failed</title></head>
-        <body style="font-family: Arial; padding: 20px;">
-            <h2 style="color: red;">❌ SMS Failed</h2>
-            <p>Check console logs for error details</p>
-            <h3>Common issues:</h3>
-            <ul>
-                <li>Invalid API key (check FAST2SMS_API_KEY in .env)</li>
-                <li>Insufficient balance (need ₹20 minimum)</li>
-                <li>Account not activated</li>
-            </ul>
-            <a href="/dashboard" style="display: inline-block; margin-top: 20px; 
-               padding: 10px 20px; background: #dc3545; color: white; 
-               text-decoration: none; border-radius: 5px;">Back to Dashboard</a>
-        </body>
-        </html>
-        """
 
 def clean_phone_for_fast2sms(phone):
     """
@@ -2547,37 +2478,88 @@ def donor_response_page(request_id, donor_id):
         traceback.print_exc()
         return f"<h2>❌ Error: {str(e)}</h2>", 500 
 
-@app.route("/test-sms-otp")
-def test_sms_otp():
-    """Test OTP route SMS delivery"""
-    if session.get("role") != "admin":
+@app.route("/test-sms-new-api")
+def test_sms_new_api():
+    """Test SMS with NEW Fast2SMS API (v3)"""
+    if session.get("role") != "admin" and not app.debug:
         return "Unauthorized", 403
     
-    test_phone = "8850134584"  # Your 10-digit number
-    test_message = "PlasmoBlood Test: Blood donation request. OTP route test."
+    test_phone = "8850134584"  # Replace with your number
+    test_message = "Test from PlasmoBlood: Blood donation request. NEW API working!"
     
-    print("=" * 50)
-    print("🧪 TESTING FAST2SMS OTP ROUTE")
-    print("=" * 50)
+    print("=" * 60)
+    print("🧪 TESTING NEW FAST2SMS API (v3/bulkV2)")
+    print("=" * 60)
+    print(f"Phone: {test_phone}")
+    print(f"Message: {test_message}")
+    print(f"Length: {len(test_message)} chars")
     
     success = send_sms_fast2sms_blocking(test_phone, test_message)
     
     if success:
-        return """
-        <h2>✅ SMS Sent Successfully!</h2>
-        <p>Check your phone - it should arrive in normal inbox (not spam)</p>
-        <p>Check console logs for details</p>
+        return f"""
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>SMS Test Success</title>
+        </head>
+        <body style="font-family: Arial; padding: 20px; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: green;">✅ SMS Sent Successfully!</h2>
+            <p><strong>Check your phone's inbox</strong></p>
+            
+            <div style="background: #f0f0f0; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                <p><strong>Sent to:</strong> {test_phone}</p>
+                <p><strong>Message:</strong> {test_message}</p>
+                <p><strong>API:</strong> NEW v3/bulkV2 endpoint</p>
+            </div>
+            
+            <h3>Next Steps:</h3>
+            <ol>
+                <li>Check if SMS arrived in main inbox (not spam)</li>
+                <li>If in spam, mark as "Not Spam"</li>
+                <li>Save sender to contacts for future delivery</li>
+            </ol>
+            
+            <a href="/dashboard" style="display: inline-block; margin-top: 20px; 
+               padding: 12px 24px; background: #667eea; color: white; 
+               text-decoration: none; border-radius: 6px;">Back to Dashboard</a>
+        </body>
+        </html>
         """
     else:
-        return """
-        <h2>❌ SMS Failed</h2>
-        <p>Check console logs for error details</p>
-        <p>Common issues:</p>
-        <ul>
-            <li>Invalid API key</li>
-            <li>Insufficient balance (need ₹20 minimum)</li>
-            <li>OTP route not activated in dashboard</li>
-        </ul>
+        return f"""
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>SMS Test Failed</title>
+        </head>
+        <body style="font-family: Arial; padding: 20px; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: red;">❌ SMS Failed</h2>
+            <p>Check console logs for detailed error</p>
+            
+            <h3>Common Issues:</h3>
+            <ol>
+                <li><strong>Invalid API Key:</strong> Check FAST2SMS_API_KEY in .env file
+                    <br>Get key from: <a href="https://www.fast2sms.com/dashboard/dev-api" target="_blank">
+                    Fast2SMS Dashboard → API</a>
+                </li>
+                <li><strong>Low Balance:</strong> Need at least ₹20
+                    <br><a href="https://www.fast2sms.com/dashboard" target="_blank">Recharge here</a>
+                </li>
+                <li><strong>Account Issues:</strong> Verify your account is activated</li>
+            </ol>
+            
+            <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                <p><strong>💡 Tip:</strong> Check the server console for the exact error message</p>
+            </div>
+            
+            <a href="/dashboard" style="display: inline-block; margin-top: 20px; 
+               padding: 12px 24px; background: #dc3545; color: white; 
+               text-decoration: none; border-radius: 6px;">Back to Dashboard</a>
+        </body>
+        </html>
         """
 
 if __name__ == "__main__":
