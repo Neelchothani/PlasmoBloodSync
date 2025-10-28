@@ -534,13 +534,11 @@ def send_email_threaded(to_email, subject, html_body):
 
 def send_sms_fast2sms_blocking(phone_numbers, message):
     """
-    Send SMS using Fast2SMS API (OTP Route - NO DLT Required!)
-    
-    Perfect for students: Works without DLT registration and delivers to inbox.
+    Send SMS using Fast2SMS Quick Transactional Route (NO verification needed!)
+    Works immediately after recharge - delivers to inbox
     
     Args:
         phone_numbers: String or list of phone numbers (without +91)
-                      Example: "9876543210" or ["9876543210", "9123456789"]
         message: SMS text (max 500 characters)
     
     Returns:
@@ -551,59 +549,49 @@ def send_sms_fast2sms_blocking(phone_numbers, message):
         return False
     
     try:
-        # === STEP 1: Clean and validate phone numbers ===
+        # === STEP 1: Clean phone numbers ===
         if isinstance(phone_numbers, list):
             cleaned_phones = []
             for p in phone_numbers:
                 phone_str = str(p).strip()
-                # Remove +91 prefix
                 if phone_str.startswith('+91'):
                     phone_str = phone_str[3:]
                 elif phone_str.startswith('91') and len(phone_str) == 12:
                     phone_str = phone_str[2:]
-                # Remove leading 0
                 if phone_str.startswith('0'):
                     phone_str = phone_str[1:]
-                # Keep only digits
                 phone_str = ''.join(filter(str.isdigit, phone_str))
                 if phone_str:
                     cleaned_phones.append(phone_str)
             phone_numbers = ",".join(cleaned_phones)
         else:
             phone_str = str(phone_numbers).strip()
-            print(f"🔍 Original phone: '{phone_str}'")
-            
-            # Remove +91 prefix
             if phone_str.startswith('+91'):
                 phone_str = phone_str[3:]
             elif phone_str.startswith('91') and len(phone_str) == 12:
                 phone_str = phone_str[2:]
-            
-            # Remove leading 0
             if phone_str.startswith('0'):
                 phone_str = phone_str[1:]
-            
-            # Keep only digits
             phone_numbers = ''.join(filter(str.isdigit, phone_str))
-            print(f"🔍 Cleaned phone: '{phone_numbers}'")
         
-        # Validate phone numbers (must be 10 digits each)
+        # Validate
         for phone in phone_numbers.split(','):
             if not phone.isdigit() or len(phone) != 10:
-                print(f"❌ Invalid phone number: {phone} (length: {len(phone)})")
+                print(f"❌ Invalid phone: {phone}")
                 return False
         
-        print(f"📱 Sending SMS to {phone_numbers} via Fast2SMS (OTP Route)")
+        print(f"📱 Sending SMS to {phone_numbers} via Fast2SMS (Quick Transactional)")
         
-        # === STEP 2: Prepare API request ===
+        # === STEP 2: Use Quick Transactional Route ===
         url = "https://www.fast2sms.com/dev/bulkV2"
         
-        # ✅ OTP ROUTE - Best for students (NO DLT required!)
-        # Note: OTP route uses 'variables_values' instead of 'message'
+        # ✅ QUICK TRANSACTIONAL - No verification needed!
         payload = {
-            "variables_values": message[:500],  # OTP route parameter
-            "route": "otp",  # OTP route delivers to inbox, no spam
-            "numbers": phone_numbers  # Comma-separated 10-digit numbers
+            "message": message[:500],  # Use 'message' not 'variables_values'
+            "route": "q",  # 'q' = Quick Transactional route
+            "language": "english",
+            "flash": 0,  # 0 = normal SMS, 1 = flash SMS
+            "numbers": phone_numbers
         }
         
         headers = {
@@ -611,70 +599,45 @@ def send_sms_fast2sms_blocking(phone_numbers, message):
             "Content-Type": "application/json"
         }
         
-        print(f"📤 Payload: {payload}")
+        print(f"📤 Request: {payload}")
         
-        # === STEP 3: Send request ===
+        # === STEP 3: Send ===
         response = requests.post(url, json=payload, headers=headers, timeout=10)
         
-        print(f"📊 HTTP Status: {response.status_code}")
-        print(f"📊 Response: {response.text}")
+        print(f"📊 HTTP {response.status_code}: {response.text}")
         
-        # === STEP 4: Parse response ===
+        # === STEP 4: Check response ===
         try:
             response_data = response.json()
         except:
-            print(f"❌ Failed to parse JSON: {response.text}")
+            print(f"❌ Invalid JSON: {response.text}")
             return False
         
-        # === STEP 5: Check success ===
+        # === STEP 5: Success check ===
         if response.status_code == 200 and response_data.get("return"):
-            print(f"✅ SMS sent successfully to {phone_numbers}")
+            print(f"✅ SMS sent to {phone_numbers}")
             print(f"   Message ID: {response_data.get('request_id')}")
             return True
         else:
             error_msg = response_data.get('message', 'Unknown error')
             print(f"❌ Fast2SMS Error: {error_msg}")
-            print(f"   Full response: {response_data}")
             
-            # === STEP 6: Helpful error messages ===
-            if "authorization" in error_msg.lower() or "invalid" in error_msg.lower():
-                print("⚠️ ERROR: Invalid API key!")
-                print(f"   → Check FAST2SMS_API_KEY in environment variables")
-                print(f"   → Get key from: https://www.fast2sms.com/dashboard/dev-api")
-            
-            elif "balance" in error_msg.lower() or "insufficient" in error_msg.lower():
-                print("⚠️ ERROR: Insufficient balance!")
-                print(f"   → Recharge at: https://www.fast2sms.com/dashboard")
-                print(f"   → Minimum ₹20 for testing")
-            
-            elif "100 INR" in error_msg or "transaction" in error_msg.lower():
-                print("⚠️ ERROR: First recharge required!")
-                print(f"   → Complete minimum ₹100 first recharge")
-                print(f"   → Go to: https://www.fast2sms.com/dashboard")
-            
-            elif "route" in error_msg.lower() or "not activated" in error_msg.lower():
-                print("⚠️ ERROR: OTP route not activated!")
-                print(f"   → Go to Fast2SMS dashboard → Settings → Routes")
-                print(f"   → Enable 'OTP Route'")
-                print(f"   → OTP route is FREE and works without DLT")
-            
-            elif "DLT" in error_msg.upper():
-                print("⚠️ ERROR: DLT required for this route!")
-                print(f"   → Switch to OTP route (no DLT needed)")
-                print(f"   → Or register DLT at: https://www.fast2sms.com/dlt-template")
+            # Helpful error messages
+            if "authorization" in error_msg.lower():
+                print("⚠️ Invalid API key - check FAST2SMS_API_KEY")
+            elif "balance" in error_msg.lower():
+                print("⚠️ Insufficient balance - recharge at https://www.fast2sms.com/dashboard")
+            elif "route" in error_msg.lower():
+                print("⚠️ Quick Transactional route issue")
+                print("   → Try switching to 'dlt' route (requires DLT registration)")
             
             return False
             
     except requests.exceptions.Timeout:
-        print(f"❌ Fast2SMS timeout - request took too long")
+        print(f"❌ Fast2SMS timeout")
         return False
-    
-    except requests.exceptions.RequestException as e:
-        print(f"❌ Fast2SMS network error: {str(e)}")
-        return False
-    
     except Exception as e:
-        print(f"❌ Fast2SMS unexpected error: {str(e)}")
+        print(f"❌ Fast2SMS error: {str(e)}")
         import traceback
         traceback.print_exc()
         return False
