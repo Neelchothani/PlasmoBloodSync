@@ -534,19 +534,15 @@ def send_email_threaded(to_email, subject, html_body):
 
 def send_sms_fast2sms_blocking(phone_numbers, message):
     """
-    Send SMS using Fast2SMS - MULTI-ROUTE FALLBACK (Spam-proof!)
-    
-    ✅ STRATEGY: Try multiple routes until one works
-    1. Try 'q' (Quick Transactional) - best for students
-    2. Fallback to 'dlt_te' (Template-based) if available
-    3. Fallback to 't' (Transactional) as last resort
+    Send SMS using Fast2SMS Quick Transactional Route (NO verification needed!)
+    Works immediately after recharge - delivers to inbox
     
     Args:
-        phone_numbers: String or list of 10-digit numbers
-        message: SMS text (keep under 100 chars for best delivery)
+        phone_numbers: String or list of phone numbers (without +91)
+        message: SMS text (max 500 characters)
     
     Returns:
-        bool: True if successful
+        bool: True if successful, False otherwise
     """
     if not FAST2SMS_API_KEY:
         print("⚠️ Fast2SMS not configured - SMS skipped")
@@ -584,64 +580,58 @@ def send_sms_fast2sms_blocking(phone_numbers, message):
                 print(f"❌ Invalid phone: {phone}")
                 return False
         
-        # Keep message VERY short (under 80 chars is best)
-        short_message = message[:80]
+        print(f"📱 Sending SMS to {phone_numbers} via Fast2SMS (Quick Transactional)")
         
+        # === STEP 2: Use Quick Transactional Route ===
         url = "https://www.fast2sms.com/dev/bulkV2"
+        
+        # ✅ QUICK TRANSACTIONAL - No verification needed!
+        payload = {
+            "message": message[:500],  # Use 'message' not 'variables_values'
+            "route": "q",  # 'q' = Quick Transactional route
+            "language": "english",
+            "flash": 0,  # 0 = normal SMS, 1 = flash SMS
+            "numbers": phone_numbers
+        }
+        
         headers = {
             "authorization": FAST2SMS_API_KEY,
             "Content-Type": "application/json"
         }
         
-        # === STEP 2: Try multiple routes in order ===
-        routes_to_try = [
-            ("q", "Quick Transactional"),
-            ("t", "Transactional"),
-            ("p", "Promotional")
-        ]
+        print(f"📤 Request: {payload}")
         
-        for route_code, route_name in routes_to_try:
-            print(f"\n📱 Attempting SMS via {route_name} (route='{route_code}')")
-            print(f"   To: {phone_numbers}")
-            print(f"   Message ({len(short_message)} chars): {short_message}")
-            
-            payload = {
-                "message": short_message,
-                "route": route_code,
-                "language": "english",
-                "flash": 0,
-                "numbers": phone_numbers
-            }
-            
-            try:
-                response = requests.post(url, json=payload, headers=headers, timeout=10)
-                print(f"   📊 HTTP {response.status_code}: {response.text[:200]}")
-                
-                response_data = response.json()
-                
-                if response.status_code == 200 and response_data.get("return"):
-                    print(f"   ✅ SUCCESS via {route_name}!")
-                    print(f"   Message ID: {response_data.get('request_id')}")
-                    print(f"\n💡 TIP: Save sender number to contacts to ensure inbox delivery")
-                    return True
-                else:
-                    error_msg = response_data.get('message', 'Unknown error')
-                    print(f"   ❌ Failed: {error_msg}")
-                    # Try next route
-                    continue
-                    
-            except Exception as e:
-                print(f"   ❌ Exception: {str(e)}")
-                continue
+        # === STEP 3: Send ===
+        response = requests.post(url, json=payload, headers=headers, timeout=10)
         
-        # All routes failed
-        print(f"\n❌ ALL ROUTES FAILED for {phone_numbers}")
-        print(f"💡 Troubleshooting:")
-        print(f"   1. Check balance: https://www.fast2sms.com/dashboard")
-        print(f"   2. Enable all routes in Settings")
-        print(f"   3. Verify API key is correct")
-        print(f"   4. Try recharging account (₹20 minimum)")
-        return False
+        print(f"📊 HTTP {response.status_code}: {response.text}")
+        
+        # === STEP 4: Check response ===
+        try:
+            response_data = response.json()
+        except:
+            print(f"❌ Invalid JSON: {response.text}")
+            return False
+        
+        # === STEP 5: Success check ===
+        if response.status_code == 200 and response_data.get("return"):
+            print(f"✅ SMS sent to {phone_numbers}")
+            print(f"   Message ID: {response_data.get('request_id')}")
+            return True
+        else:
+            error_msg = response_data.get('message', 'Unknown error')
+            print(f"❌ Fast2SMS Error: {error_msg}")
+            
+            # Helpful error messages
+            if "authorization" in error_msg.lower():
+                print("⚠️ Invalid API key - check FAST2SMS_API_KEY")
+            elif "balance" in error_msg.lower():
+                print("⚠️ Insufficient balance - recharge at https://www.fast2sms.com/dashboard")
+            elif "route" in error_msg.lower():
+                print("⚠️ Quick Transactional route issue")
+                print("   → Try switching to 'dlt' route (requires DLT registration)")
+            
+            return False
             
     except requests.exceptions.Timeout:
         print(f"❌ Fast2SMS timeout")
@@ -2545,151 +2535,6 @@ def donor_response_page(request_id, donor_id):
         traceback.print_exc()
         return f"<h2>❌ Error: {str(e)}</h2>", 500 
 
-@app.route("/test-sms-inbox")
-def test_sms_inbox():
-    """Test SMS with multi-route fallback + spam fix guide"""
-    if session.get("role") != "admin" and not app.debug:
-        return "Unauthorized", 403
-    
-    test_phone = "8850134584"  # Replace with your number
-    
-    # ULTRA-SHORT message (under 80 chars) - no spam words
-    test_message = "Blood donation needed. Patient urgent. Contact: 9876543210"
-    
-    print("=" * 60)
-    print("🧪 TESTING SMS (Multi-Route Fallback + Anti-Spam)")
-    print("=" * 60)
-    print(f"Message length: {len(test_message)} chars")
-    print(f"Message: {test_message}")
-    
-    success = send_sms_fast2sms_blocking(test_phone, test_message)
-    
-    if success:
-        return f"""
-        <html>
-        <head>
-            <title>SMS Test Success</title>
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-        </head>
-        <body style="font-family: Arial; padding: 20px; max-width: 800px; margin: 0 auto;">
-            <h2 style="color: green;">✅ SMS Sent Successfully!</h2>
-            <p><strong>Check your phone NOW</strong></p>
-            
-            <div style="background: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin: 20px 0;">
-                <h3 style="margin-top: 0;">📱 Is SMS in SPAM folder?</h3>
-                <p style="margin-bottom: 0;">Follow these steps to move it to inbox:</p>
-            </div>
-            
-            <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                <h3>🛠️ FIX #1: Whitelist the Sender (BEST METHOD)</h3>
-                <ol style="line-height: 1.8;">
-                    <li>Open the SMS in spam folder</li>
-                    def send_sms_fast2sms_blocking(phone_numbers, message):
-    """
-    
-    if not FAST2SMS_API_KEY:
-        print("⚠️ Fast2SMS not configured - SMS skipped")
-        return False
-    
-    try:
-        # === STEP 1: Clean phone numbers ===
-        if isinstance(phone_numbers, list):
-            cleaned_phones = []
-            for p in phone_numbers:
-                phone_str = str(p).strip()
-                if phone_str.startswith('+91'):
-                    phone_str = phone_str[3:]
-                elif phone_str.startswith('91') and len(phone_str) == 12:
-                    phone_str = phone_str[2:]
-                if phone_str.startswith('0'):
-                    phone_str = phone_str[1:]
-                phone_str = ''.join(filter(str.isdigit, phone_str))
-                if phone_str:
-                    cleaned_phones.append(phone_str)
-            phone_numbers = ",".join(cleaned_phones)
-        else:
-            phone_str = str(phone_numbers).strip()
-            if phone_str.startswith('+91'):
-                phone_str = phone_str[3:]
-            elif phone_str.startswith('91') and len(phone_str) == 12:
-                phone_str = phone_str[2:]
-            if phone_str.startswith('0'):
-                phone_str = phone_str[1:]
-            phone_numbers = ''.join(filter(str.isdigit, phone_str))
-        
-        # Validate
-        for phone in phone_numbers.split(','):
-            if not phone.isdigit() or len(phone) != 10:
-                print(f"❌ Invalid phone: {phone}")
-                return False
-        
-        # Keep message VERY short (under 80 chars is best)
-        short_message = message[:80]
-        
-        url = "https://www.fast2sms.com/dev/bulkV2"
-        headers = {
-            "authorization": FAST2SMS_API_KEY,
-            "Content-Type": "application/json"
-        }
-        
-        # === STEP 2: Try multiple routes in order ===
-        routes_to_try = [
-            ("q", "Quick Transactional"),
-            ("t", "Transactional"),
-            ("p", "Promotional")
-        ]
-        
-        for route_code, route_name in routes_to_try:
-            print(f"\n📱 Attempting SMS via {route_name} (route='{route_code}')")
-            print(f"   To: {phone_numbers}")
-            print(f"   Message ({len(short_message)} chars): {short_message}")
-            
-            payload = {
-                "message": short_message,
-                "route": route_code,
-                "language": "english",
-                "flash": 0,
-                "numbers": phone_numbers
-            }
-            
-            try:
-                response = requests.post(url, json=payload, headers=headers, timeout=10)
-                print(f"   📊 HTTP {response.status_code}: {response.text[:200]}")
-                
-                response_data = response.json()
-                
-                if response.status_code == 200 and response_data.get("return"):
-                    print(f"   ✅ SUCCESS via {route_name}!")
-                    print(f"   Message ID: {response_data.get('request_id')}")
-                    print(f"\n💡 TIP: Save sender number to contacts to ensure inbox delivery")
-                    return True
-                else:
-                    error_msg = response_data.get('message', 'Unknown error')
-                    print(f"   ❌ Failed: {error_msg}")
-                    # Try next route
-                    continue
-                    
-            except Exception as e:
-                print(f"   ❌ Exception: {str(e)}")
-                continue
-        
-        # All routes failed
-        print(f"\n❌ ALL ROUTES FAILED for {phone_numbers}")
-        print(f"💡 Troubleshooting:")
-        print(f"   1. Check balance: https://www.fast2sms.com/dashboard")
-        print(f"   2. Enable all routes in Settings")
-        print(f"   3. Verify API key is correct")
-        print(f"   4. Try recharging account (₹20 minimum)")
-        return False
-            
-    except requests.exceptions.Timeout:
-        print(f"❌ Fast2SMS timeout")
-        return False
-    except Exception as e:
-        print(f"❌ Fast2SMS error: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return False
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
