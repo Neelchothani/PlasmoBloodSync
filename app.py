@@ -534,7 +534,9 @@ def send_email_threaded(to_email, subject, html_body):
 
 def send_sms_fast2sms_blocking(phone_numbers, message):
     """
-    Send SMS using Fast2SMS API (NEW API v3)
+    Send SMS using Fast2SMS API (OTP Route - NO DLT Required!)
+    
+    Perfect for students: Works without DLT registration and delivers to inbox.
     
     Args:
         phone_numbers: String or list of phone numbers (without +91)
@@ -549,87 +551,82 @@ def send_sms_fast2sms_blocking(phone_numbers, message):
         return False
     
     try:
-        # Convert list to comma-separated string
+        # === STEP 1: Clean and validate phone numbers ===
         if isinstance(phone_numbers, list):
-            # ✅ FIXED: Process each phone number correctly
             cleaned_phones = []
             for p in phone_numbers:
                 phone_str = str(p).strip()
-                # Remove +91 prefix if present
+                # Remove +91 prefix
                 if phone_str.startswith('+91'):
                     phone_str = phone_str[3:]
                 elif phone_str.startswith('91') and len(phone_str) == 12:
                     phone_str = phone_str[2:]
-                # Remove leading zero
+                # Remove leading 0
                 if phone_str.startswith('0'):
                     phone_str = phone_str[1:]
                 # Keep only digits
                 phone_str = ''.join(filter(str.isdigit, phone_str))
-                cleaned_phones.append(phone_str)
+                if phone_str:
+                    cleaned_phones.append(phone_str)
             phone_numbers = ",".join(cleaned_phones)
         else:
-            # ✅ FIXED: Clean single number correctly
             phone_str = str(phone_numbers).strip()
             print(f"🔍 Original phone: '{phone_str}'")
             
-            # Remove +91 prefix if present
+            # Remove +91 prefix
             if phone_str.startswith('+91'):
                 phone_str = phone_str[3:]
-                print(f"🔍 After removing +91: '{phone_str}'")
             elif phone_str.startswith('91') and len(phone_str) == 12:
                 phone_str = phone_str[2:]
-                print(f"🔍 After removing 91: '{phone_str}'")
             
-            # Remove leading zero
+            # Remove leading 0
             if phone_str.startswith('0'):
                 phone_str = phone_str[1:]
-                print(f"🔍 After removing 0: '{phone_str}'")
             
             # Keep only digits
             phone_numbers = ''.join(filter(str.isdigit, phone_str))
-            print(f"🔍 Final cleaned: '{phone_numbers}'")
+            print(f"🔍 Cleaned phone: '{phone_numbers}'")
         
-        # Validate phone numbers (10 digits each)
+        # Validate phone numbers (must be 10 digits each)
         for phone in phone_numbers.split(','):
             if not phone.isdigit() or len(phone) != 10:
                 print(f"❌ Invalid phone number: {phone} (length: {len(phone)})")
                 return False
         
-        print(f"📱 Sending SMS to {phone_numbers} via Fast2SMS (New API)")
+        print(f"📱 Sending SMS to {phone_numbers} via Fast2SMS (OTP Route)")
         
-        # Fast2SMS API endpoint
+        # === STEP 2: Prepare API request ===
         url = "https://www.fast2sms.com/dev/bulkV2"
         
-        # Prepare payload - Try promotional route first
+        # ✅ OTP ROUTE - Best for students (NO DLT required!)
+        # Note: OTP route uses 'variables_values' instead of 'message'
         payload = {
-            "message": message[:500],  # Limit to 500 chars
-            "language": "english",
-            "route": "q",  # Quick/Promotional route
-            "numbers": phone_numbers  # Comma-separated
+            "variables_values": message[:500],  # OTP route parameter
+            "route": "otp",  # OTP route delivers to inbox, no spam
+            "numbers": phone_numbers  # Comma-separated 10-digit numbers
         }
         
-        # Headers with API key
         headers = {
             "authorization": FAST2SMS_API_KEY,
             "Content-Type": "application/json"
         }
         
-        print(f"📤 Request payload: {payload}")
+        print(f"📤 Payload: {payload}")
         
-        # Send request
+        # === STEP 3: Send request ===
         response = requests.post(url, json=payload, headers=headers, timeout=10)
         
-        # Log full response for debugging
-        print(f"📊 Fast2SMS HTTP Status: {response.status_code}")
-        print(f"📊 Fast2SMS Raw Response: {response.text}")
+        print(f"📊 HTTP Status: {response.status_code}")
+        print(f"📊 Response: {response.text}")
         
+        # === STEP 4: Parse response ===
         try:
             response_data = response.json()
         except:
-            print(f"❌ Failed to parse JSON response: {response.text}")
+            print(f"❌ Failed to parse JSON: {response.text}")
             return False
         
-        # Check response
+        # === STEP 5: Check success ===
         if response.status_code == 200 and response_data.get("return"):
             print(f"✅ SMS sent successfully to {phone_numbers}")
             print(f"   Message ID: {response_data.get('request_id')}")
@@ -637,34 +634,45 @@ def send_sms_fast2sms_blocking(phone_numbers, message):
         else:
             error_msg = response_data.get('message', 'Unknown error')
             print(f"❌ Fast2SMS Error: {error_msg}")
-            print(f"❌ Full response: {response_data}")
+            print(f"   Full response: {response_data}")
             
-            # Helpful error messages
+            # === STEP 6: Helpful error messages ===
             if "authorization" in error_msg.lower() or "invalid" in error_msg.lower():
                 print("⚠️ ERROR: Invalid API key!")
-                print(f"   → Check your FAST2SMS_API_KEY in Render environment variables")
-                print(f"   → Current key (first 10 chars): {FAST2SMS_API_KEY[:10]}...")
+                print(f"   → Check FAST2SMS_API_KEY in environment variables")
+                print(f"   → Get key from: https://www.fast2sms.com/dashboard/dev-api")
+            
             elif "balance" in error_msg.lower() or "insufficient" in error_msg.lower():
                 print("⚠️ ERROR: Insufficient balance!")
-                print(f"   → Recharge at https://www.fast2sms.com/dashboard")
+                print(f"   → Recharge at: https://www.fast2sms.com/dashboard")
+                print(f"   → Minimum ₹20 for testing")
+            
             elif "100 INR" in error_msg or "transaction" in error_msg.lower():
-                print("⚠️ ERROR: Minimum ₹100 transaction required!")
-                print(f"   → Complete first recharge at https://www.fast2sms.com/dashboard")
+                print("⚠️ ERROR: First recharge required!")
+                print(f"   → Complete minimum ₹100 first recharge")
+                print(f"   → Go to: https://www.fast2sms.com/dashboard")
+            
+            elif "route" in error_msg.lower() or "not activated" in error_msg.lower():
+                print("⚠️ ERROR: OTP route not activated!")
+                print(f"   → Go to Fast2SMS dashboard → Settings → Routes")
+                print(f"   → Enable 'OTP Route'")
+                print(f"   → OTP route is FREE and works without DLT")
+            
             elif "DLT" in error_msg.upper():
-                print("⚠️ ERROR: DLT template required for this route!")
-                print(f"   → Try route 'q' (promotional) instead of 'dlt'")
-            elif "route" in error_msg.lower():
-                print("⚠️ ERROR: Invalid route!")
-                print(f"   → Available routes: 'q' (promotional), 'otp', 'dlt'")
+                print("⚠️ ERROR: DLT required for this route!")
+                print(f"   → Switch to OTP route (no DLT needed)")
+                print(f"   → Or register DLT at: https://www.fast2sms.com/dlt-template")
             
             return False
             
     except requests.exceptions.Timeout:
         print(f"❌ Fast2SMS timeout - request took too long")
         return False
+    
     except requests.exceptions.RequestException as e:
         print(f"❌ Fast2SMS network error: {str(e)}")
         return False
+    
     except Exception as e:
         print(f"❌ Fast2SMS unexpected error: {str(e)}")
         import traceback
@@ -673,20 +681,24 @@ def send_sms_fast2sms_blocking(phone_numbers, message):
 
 
 def send_sms_fast2sms_threaded(phone_numbers, message):
-    """Send Fast2SMS in background thread (non-blocking) - NON-DAEMON to ensure completion"""
+    """
+    Send Fast2SMS in background thread (non-blocking)
+    
+    Use this in web routes to prevent timeout
+    """
     def _send():
         try:
             success = send_sms_fast2sms_blocking(phone_numbers, message)
             if success:
-                print(f"✅ SMS thread completed successfully for {phone_numbers}")
+                print(f"✅ SMS thread completed for {phone_numbers}")
             else:
                 print(f"⚠️ SMS thread failed for {phone_numbers}")
         except Exception as e:
-            print(f"❌ SMS thread exception for {phone_numbers}: {str(e)}")
+            print(f"❌ SMS thread exception: {str(e)}")
             import traceback
             traceback.print_exc()
     
-    # ✅ NON-DAEMON thread so it completes even if main request ends
+    # Non-daemon thread ensures completion
     thread = threading.Thread(target=_send, daemon=False)
     thread.start()
     print(f"📤 SMS queued for {phone_numbers}")
@@ -694,18 +706,18 @@ def send_sms_fast2sms_threaded(phone_numbers, message):
 
 def _send_donor_request_email(request_id, donor, patient_name, blood_group, details, phone):
     """
-    Send donor request via EMAIL + SMS (Fast2SMS - FREE!)
+    Send donor request via EMAIL + SMS (with OTP route)
     """
     donor_email = donor.get("email")
     donor_phone = donor.get("phone")
     donor_id = donor.get("id")
     distance_km = donor.get("distance", 0)
     
-    # Build accept/reject links
+    # Build response links
     accept_link = f"{request.url_root}donor_response/{request_id}/{donor_id}/accept"
     reject_link = f"{request.url_root}donor_response/{request_id}/{donor_id}/reject"
     
-    # === 1. SEND EMAIL (with beautiful buttons) ===
+    # === 1. SEND EMAIL ===
     if donor_email:
         html = f"""
         <html>
@@ -775,55 +787,42 @@ def _send_donor_request_email(request_id, donor, patient_name, blood_group, deta
             html_body=html
         )
         print(f"📧 Email queued for {donor.get('name')} ({distance_km:.1f}km)")
-    else:
-        print(f"⚠️ No email for donor {donor.get('name')}")
     
-    # === 2. SEND SMS (SHORT, CLEAN, NO SPAM) ===
+    # === 2. SEND SMS (SHORT & CLEAN with OTP route) ===
     if donor_phone:
         phone_str = str(donor_phone).strip()
-        print(f"🔍 Original phone: '{phone_str}'")
         
-        # Remove +91 prefix if present
+        # Clean phone number
         if phone_str.startswith('+91'):
             phone_str = phone_str[3:]
-            print(f"🔍 After removing +91: '{phone_str}'")
         elif phone_str.startswith('91') and len(phone_str) == 12:
             phone_str = phone_str[2:]
-            print(f"🔍 After removing 91: '{phone_str}'")
-        
-        # Remove leading zero
         if phone_str.startswith('0'):
             phone_str = phone_str[1:]
-            print(f"🔍 After removing 0: '{phone_str}'")
         
-        # Keep only digits
         clean_phone = ''.join(filter(str.isdigit, phone_str))
-        print(f"🔍 Final cleaned: '{clean_phone}'")
         
         if len(clean_phone) == 10 and clean_phone.isdigit():
-            # ✅ SHORT SMS with two simple links (under 160 chars)
-            # Create short response page URL
+            # Create short response link
             response_page = f"{request.url_root}r/{request_id}/{donor_id}"
             
-            sms_body = (
-                f"PlasmoBlood: {patient_name} needs {blood_group} "
-                f"({distance_km:.1f}km away). "
-                f"Respond: {response_page}"
-            )
+            # ✅ OPTIMIZED MESSAGE (under 140 chars for better delivery)
+            sms_body = f"Blood needed: {patient_name} ({blood_group}). Respond: {response_page}"
             
             print(f"📱 SMS length: {len(sms_body)} chars")
-            print(f"📱 Sending SMS to {donor.get('name')} at {clean_phone}...")
+            print(f"📱 Sending to {donor.get('name')} at {clean_phone}...")
             
+            # Use blocking call to ensure delivery
             success = send_sms_fast2sms_blocking(clean_phone, sms_body)
             
             if success:
-                print(f"✅ SMS sent to {donor.get('name')} at {clean_phone} ({distance_km:.1f}km)")
+                print(f"✅ SMS sent to {donor.get('name')} ({distance_km:.1f}km)")
             else:
-                print(f"❌ SMS failed for {donor.get('name')} at {clean_phone}")
+                print(f"❌ SMS failed for {donor.get('name')}")
         else:
-            print(f"⚠️ Invalid phone format for {donor.get('name')}: '{donor_phone}' → cleaned: '{clean_phone}' (len={len(clean_phone)})")
+            print(f"⚠️ Invalid phone: '{donor_phone}' → '{clean_phone}' (len={len(clean_phone)})")
     else:
-        print(f"⚠️ No phone number for donor {donor.get('name')}")
+        print(f"⚠️ No phone for {donor.get('name')}")
 
 
 def clean_phone_for_fast2sms(phone):
@@ -2497,6 +2496,39 @@ def donor_response_page(request_id, donor_id):
         import traceback
         traceback.print_exc()
         return f"<h2>❌ Error: {str(e)}</h2>", 500 
+
+@app.route("/test-sms-otp")
+def test_sms_otp():
+    """Test OTP route SMS delivery"""
+    if session.get("role") != "admin":
+        return "Unauthorized", 403
+    
+    test_phone = "8850134584"  # Your 10-digit number
+    test_message = "PlasmoBlood Test: Blood donation request. OTP route test."
+    
+    print("=" * 50)
+    print("🧪 TESTING FAST2SMS OTP ROUTE")
+    print("=" * 50)
+    
+    success = send_sms_fast2sms_blocking(test_phone, test_message)
+    
+    if success:
+        return """
+        <h2>✅ SMS Sent Successfully!</h2>
+        <p>Check your phone - it should arrive in normal inbox (not spam)</p>
+        <p>Check console logs for details</p>
+        """
+    else:
+        return """
+        <h2>❌ SMS Failed</h2>
+        <p>Check console logs for error details</p>
+        <p>Common issues:</p>
+        <ul>
+            <li>Invalid API key</li>
+            <li>Insufficient balance (need ₹20 minimum)</li>
+            <li>OTP route not activated in dashboard</li>
+        </ul>
+        """
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
