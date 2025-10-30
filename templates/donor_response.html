@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blood Donation Response - PlasmoBlood Sync</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            max-width: 600px;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #dc2626 0%, #ec4899 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+
+        .header-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            opacity: 0.95;
+            font-size: 14px;
+        }
+
+        .content {
+            padding: 30px 20px;
+        }
+
+        .greeting {
+            font-size: 18px;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .greeting strong {
+            color: #667eea;
+        }
+
+        .urgent-banner {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: start;
+        }
+
+        .urgent-icon {
+            font-size: 20px;
+            margin-right: 10px;
+            flex-shrink: 0;
+        }
+
+        .urgent-text {
+            flex: 1;
+        }
+
+        .urgent-text strong {
+            color: #92400e;
+            display: block;
+            margin-bottom: 3px;
+        }
+
+        .urgent-text p {
+            color: #78350f;
+            font-size: 14px;
+        }
+
+        .info-card {
+            background: linear-gradient(135deg, #f3e8ff 0%, #fce7f3 100%);
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+        }
+
+        .info-card h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .info-row {
+            display: flex;
+            margin-bottom: 12px;
+            font-size: 15px;
+        }
+
+        .info-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .info-label {
+            font-weight: bold;
+            color: #667eea;
+            min-width: 110px;
+        }
+
+        .info-value {
+            color: #333;
+            flex: 1;
+        }
+
+        .blood-group {
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-top: 25px;
+        }
+
+        .btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 18px;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 18px;
+            text-align: center;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn-accept {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+        }
+
+        .btn-accept:hover {
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn-reject {
+            background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+            color: white;
+        }
+
+        .btn-reject:hover {
+            background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
+            box-shadow: 0 6px 20px rgba(107, 114, 128, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-icon {
+            margin-right: 8px;
+            font-size: 24px;
+        }
+
+        .footer {
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            font-size: 13px;
+            border-top: 1px solid #eee;
+        }
+
+        /* Loading State */
+        .loading {
+            text-align: center;
+            padding: 50px 20px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f4f6;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Error State */
+        .error-container {
+            background: white;
+            border-radius: 16px;
+            padding: 40px 30px;
+            max-width: 450px;
+            text-align: center;
+        }
+
+        .error-icon {
+            font-size: 64px;
+            color: #dc2626;
+            margin-bottom: 20px;
+        }
+
+        .error-container h2 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .error-container p {
+            color: #666;
+            margin-bottom: 25px;
+        }
+
+        .error-btn {
+            display: inline-block;
+            background: #dc2626;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .error-btn:hover {
+            background: #b91c1c;
+        }
+
+        /* Success States */
+        .success-container {
+            background: white;
+            border-radius: 16px;
+            padding: 40px 30px;
+            max-width: 500px;
+        }
+
+        .success-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .success-icon {
+            background: #d1fae5;
+            border-radius: 50%;
+            width: 80px;
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 48px;
+        }
+
+        .success-icon.rejected {
+            background: #f3f4f6;
+        }
+
+        .success-header h1 {
+            color: #333;
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .success-header p {
+            color: #666;
+            font-size: 16px;
+        }
+
+        .next-steps {
+            background: #d1fae5;
+            border-left: 4px solid #10b981;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .next-steps h3 {
+            color: #065f46;
+            margin-bottom: 10px;
+        }
+
+        .next-steps ul {
+            list-style: none;
+            color: #047857;
+        }
+
+        .next-steps li {
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .contact-card {
+            background: #f9fafb;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .contact-card h3 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .contact-info {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            color: #666;
+            font-size: 15px;
+        }
+
+        .contact-info:last-child {
+            margin-bottom: 0;
+        }
+
+        .contact-icon {
+            margin-right: 10px;
+            font-size: 18px;
+        }
+
+        .feedback-btn {
+            display: block;
+            width: 100%;
+            background: #10b981;
+            color: white;
+            text-align: center;
+            padding: 16px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .feedback-btn:hover {
+            background: #059669;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        }
+
+        .thank-you-note {
+            text-align: center;
+            color: #999;
+            font-size: 14px;
+            margin-top: 20px;
+        }
+
+        /* Hide by default */
+        .hidden {
+            display: none;
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+            
+            .header h1 {
+                font-size: 24px;
+            }
+            
+            .content {
+                padding: 20px 15px;
+            }
+            
+            .btn {
+                font-size: 16px;
+                padding: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading State -->
+    <div id="loadingState" class="container">
+        <div class="loading">
+            <div class="spinner"></div>
+            <p style="color: #666; font-size: 16px;">Loading request details...</p>
+        </div>
+    </div>
+
+    <!-- Error State -->
+    <div id="errorState" class="error-container hidden">
+        <div class="error-icon">⚠️</div>
+        <h2>Oops!</h2>
+        <p id="errorMessage">Something went wrong</p>
+        <a href="/" class="error-btn">Go to Homepage</a>
+    </div>
+
+    <!-- Main Response Page -->
+    <div id="mainPage" class="container hidden">
+        <div class="header">
+            <div class="header-icon">🩸</div>
+            <h1>Blood Donation Request</h1>
+            <p>Someone needs your help!</p>
+        </div>
+
+        <div class="content">
+            <div class="greeting">
+                Hi <strong id="donorName">Donor</strong> 👋
+            </div>
+
+            <div class="urgent-banner">
+                <div class="urgent-icon">⏰</div>
+                <div class="urgent-text">
+                    <strong>URGENT REQUEST</strong>
+                    <p>Please respond quickly to help save a life</p>
+                </div>
+            </div>
+
+            <div class="info-card">
+                <h3>Patient Information</h3>
+                
+                <div class="info-row">
+                    <span class="info-label">Patient:</span>
+                    <span class="info-value" id="patientName">-</span>
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">Blood Group:</span>
+                    <span class="info-value blood-group" id="bloodGroup">-</span>
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">Distance:</span>
+                    <span class="info-value">📍 <span id="distance">-</span></span>
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">Contact:</span>
+                    <span class="info-value">📞 <span id="phone">-</span></span>
+                </div>
+                
+                <div class="info-row" id="detailsRow" style="display: none;">
+                    <span class="info-label">Details:</span>
+                    <span class="info-value" id="details">-</span>
+                </div>
+            </div>
+
+            <div class="buttons">
+                <button class="btn btn-accept" onclick="handleResponse('accept')" id="acceptBtn">
+                    <span class="btn-icon">✅</span>
+                    Accept - I Can Help
+                </button>
+
+                <button class="btn btn-reject" onclick="handleResponse('reject')" id="rejectBtn">
+                    <span class="btn-icon">❌</span>
+                    Decline - Not Available
+                </button>
+            </div>
+        </div>
+
+        <div class="footer">
+            © PlasmoBlood Sync - Saving lives, one donation at a time ❤️
+        </div>
+    </div>
+
+    <!-- Success State - Accepted -->
+    <div id="acceptedState" class="success-container hidden">
+        <div class="success-header">
+            <div class="success-icon">✅</div>
+            <h1>Thank You! ❤️</h1>
+            <p>You've accepted the donation request</p>
+        </div>
+
+        <div class="next-steps">
+            <h3>What's Next?</h3>
+            <ul>
+                <li>• You'll receive a confirmation email shortly</li>
+                <li>• Please contact the patient to arrange donation</li>
+                <li>• Ensure you're well-rested before donating</li>
+            </ul>
+        </div>
+
+        <div class="contact-card">
+            <h3>Patient Contact</h3>
+            <div class="contact-info">
+                <span class="contact-icon">📞</span>
+                <span id="acceptedPhone">-</span>
+            </div>
+            <div class="contact-info">
+                <span class="contact-icon">📍</span>
+                <span id="acceptedDistance">-</span>
+            </div>
+        </div>
+
+        <a href="https://docs.google.com/forms/d/e/1FAIpQLSfiyiQmI3xUZc1zHrUGHJQsYOVB_JGAox4mDMnDYUHA2xxZYQ/viewform" 
+           target="_blank" 
+           class="feedback-btn">
+            📝 Share Your Feedback
+        </a>
+
+        <p class="thank-you-note">You're saving lives! 🙏</p>
+    </div>
+
+    <!-- Success State - Rejected -->
+    <div id="rejectedState" class="success-container hidden">
+        <div class="success-header">
+            <div class="success-icon rejected">❌</div>
+            <h1>Request Declined</h1>
+            <p>We understand. We'll notify other available donors.</p>
+        </div>
+        <p class="thank-you-note">Thank you for considering to help! 🙏</p>
+    </div>
+
+    <script>
+        // Get URL parameters (passed from Flask template)
+        const requestId = "{{ request_id }}";
+        const donorId = "{{ donor_id }}";
+
+        // DOM elements
+        const loadingState = document.getElementById('loadingState');
+        const errorState = document.getElementById('errorState');
+        const mainPage = document.getElementById('mainPage');
+        const acceptedState = document.getElementById('acceptedState');
+        const rejectedState = document.getElementById('rejectedState');
+
+        // Store request data globally
+        let requestData = null;
+        let donorData = null;
+
+        // Show/hide states
+        function showState(state) {
+            loadingState.classList.add('hidden');
+            errorState.classList.add('hidden');
+            mainPage.classList.add('hidden');
+            acceptedState.classList.add('hidden');
+            rejectedState.classList.add('hidden');
+            
+            if (state === 'loading') loadingState.classList.remove('hidden');
+            if (state === 'error') errorState.classList.remove('hidden');
+            if (state === 'main') mainPage.classList.remove('hidden');
+            if (state === 'accepted') acceptedState.classList.remove('hidden');
+            if (state === 'rejected') rejectedState.classList.remove('hidden');
+        }
+
+        // Show error message
+        function showError(message) {
+            document.getElementById('errorMessage').textContent = message;
+            showState('error');
+        }
+
+        // Fetch request data
+        async function fetchRequestData() {
+            try {
+                if (!requestId || !donorId || requestId === "" || donorId === "") {
+                    showError('Invalid or missing request information');
+                    return;
+                }
+
+                const response = await fetch(`/api/get_request_data/${requestId}/${donorId}`);
+                const data = await response.json();
+
+                if (data.status === 'error') {
+                    showError(data.message);
+                    return;
+                }
+
+                // Store data
+                requestData = data.request;
+                donorData = data.donor;
+
+                // Populate UI
+                document.getElementById('donorName').textContent = donorData.name;
+                document.getElementById('patientName').textContent = requestData.patient_name;
+                document.getElementById('bloodGroup').textContent = requestData.blood_group;
+                document.getElementById('distance').textContent = requestData.distance;
+                document.getElementById('phone').textContent = requestData.phone;
+
+                if (requestData.details) {
+                    document.getElementById('details').textContent = requestData.details;
+                    document.getElementById('detailsRow').style.display = 'flex';
+                }
+
+                showState('main');
+
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                showError('Failed to load request details. Please try again.');
+            }
+        }
+
+        // Handle accept/reject response
+        async function handleResponse(action) {
+            const acceptBtn = document.getElementById('acceptBtn');
+            const rejectBtn = document.getElementById('rejectBtn');
+
+            // Disable buttons
+            acceptBtn.disabled = true;
+            rejectBtn.disabled = true;
+            acceptBtn.textContent = 'Processing...';
+            rejectBtn.textContent = 'Processing...';
+
+            try {
+                const response = await fetch(`/donor_response/${requestId}/${donorId}/${action}`, {
+                    method: 'GET'
+                });
+
+                if (response.ok) {
+                    if (action === 'accept') {
+                        // Populate accepted state data
+                        document.getElementById('acceptedPhone').textContent = requestData.phone;
+                        document.getElementById('acceptedDistance').textContent = requestData.distance + ' away';
+                        showState('accepted');
+                    } else {
+                        showState('rejected');
+                    }
+                } else {
+                    showError('Failed to submit response. Please try again.');
+                }
+
+            } catch (error) {
+                console.error('Error submitting response:', error);
+                showError('Failed to submit response. Please try again.');
+            }
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            fetchRequestData();
+        });
+    </script>
+</body>
+</html>

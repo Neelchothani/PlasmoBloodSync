@@ -763,32 +763,21 @@ def _send_donor_request_email(request_id, donor, patient_name, blood_group, deta
         clean_phone = ''.join(filter(str.isdigit, phone_str))
         
         if len(clean_phone) == 10 and clean_phone.isdigit():
-            # Create short response link
-            response_page = f"{request.url_root}r/{request_id}/{donor_id}"
+            # ✅ NEW: Use standalone response page
+            response_page = f"{request.url_root}respond/{request_id}/{donor_id}"
             
-            # ✅ CRITICAL: Clean message format to avoid spam
-            # AVOID: "URGENT", "CLICK HERE", "!!!", excessive caps, http://
-            # KEEP: Simple, clear, professional language
-            
-            # Remove http:// from URL to avoid spam filter
+            # Remove protocol to avoid spam filters
             clean_url = response_page.replace("https://", "").replace("http://", "")
             
-            # Simple, clean message (under 140 chars recommended)
+            # Simple, clean message
             sms_body = f"Blood needed: {patient_name} ({blood_group}). Respond at {clean_url}"
             
-            # Alternative shorter format if over 140 chars
             if len(sms_body) > 140:
                 sms_body = f"{patient_name} needs {blood_group}. Reply: {clean_url}"
-            
-            # Last resort - super short
-            if len(sms_body) > 140:
-                # Use bit.ly or similar if you have it
-                sms_body = f"{blood_group} needed. Contact {phone or 'via email'}"
             
             print(f"📱 SMS ({len(sms_body)} chars): {sms_body}")
             print(f"📱 Sending to {donor.get('name')} at {clean_phone}...")
             
-            # Use blocking call to ensure delivery
             success = send_sms_fast2sms_blocking(clean_phone, sms_body)
             
             if success:
@@ -796,7 +785,7 @@ def _send_donor_request_email(request_id, donor, patient_name, blood_group, deta
             else:
                 print(f"❌ SMS failed for {donor.get('name')}")
         else:
-            print(f"⚠️ Invalid phone: '{donor_phone}' → '{clean_phone}' (len={len(clean_phone)})")
+            print(f"⚠️ Invalid phone: '{donor_phone}' → '{clean_phone}'")
     else:
         print(f"⚠️ No phone for {donor.get('name')}")
 
@@ -2535,6 +2524,99 @@ def donor_response_page(request_id, donor_id):
         traceback.print_exc()
         return f"<h2>❌ Error: {str(e)}</h2>", 500 
 
+# ============================================
+# STANDALONE DONOR RESPONSE PAGE (for SMS)
+# ============================================
+
+@app.route("/respond/<request_id>/<donor_id>")
+def respond_page(request_id, donor_id):
+    """
+    Standalone donor response page (works without login)
+    Used for SMS links - mobile optimized
+    """
+    return render_template("donor_response.html", 
+                         request_id=request_id, 
+                         donor_id=donor_id)
+
+
+@app.route("/api/get_request_data/<request_id>/<donor_id>")
+def api_get_request_data(request_id, donor_id):
+    """
+    API endpoint to fetch request and donor data for response page
+    Returns JSON with all needed information
+    """
+    try:
+        # Fetch request from Firestore
+        request_ref = db.collection(get_request_collection()).document(request_id)
+        request_doc = request_ref.get()
+        
+        if not request_doc.exists:
+            return jsonify({
+                "status": "error",
+                "message": "Request not found"
+            }), 404
+        
+        request_data = request_doc.to_dict()
+        
+        # Check if already responded
+        if request_data.get("status") in ["accepted", "rejected"]:
+            return jsonify({
+                "status": "error",
+                "message": "This request has already been processed"
+            }), 400
+        
+        # Fetch donor from Firestore
+        donor_ref = db.collection("users").document(donor_id)
+        donor_doc = donor_ref.get()
+        
+        if not donor_doc.exists:
+            return jsonify({
+                "status": "error",
+                "message": "Donor not found"
+            }), 404
+        
+        donor_data = donor_doc.to_dict()
+        
+        # Calculate distance if donor has location
+        distance_str = "nearby"
+        if donor_data.get("lat") and donor_data.get("lng"):
+            if request_data.get("lat") and request_data.get("lng"):
+                distance_km = geodesic(
+                    (request_data["lat"], request_data["lng"]),
+                    (donor_data["lat"], donor_data["lng"])
+                ).km
+                distance_str = f"{distance_km:.1f} km"
+        
+        # Prepare response data
+        response_data = {
+            "status": "success",
+            "request": {
+                "id": request_id,
+                "patient_name": request_data.get("patient_name", "N/A"),
+                "blood_group": request_data.get("blood_group", "N/A"),
+                "details": request_data.get("details", ""),
+                "phone": request_data.get("phone", "N/A"),
+                "distance": distance_str,
+                "created_at": str(request_data.get("created_at", ""))
+            },
+            "donor": {
+                "id": donor_id,
+                "name": donor_data.get("name", "Donor"),
+                "email": donor_data.get("email", ""),
+                "blood_group": donor_data.get("blood_group", "Unknown")
+            }
+        }
+        
+        return jsonify(response_data)
+        
+    except Exception as e:
+        print(f"❌ Error in api_get_request_data: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
