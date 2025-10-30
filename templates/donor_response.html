@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Blood Donation Response - PlasmoBlood Sync</title>
+    <title>Blood Donation Response</title>
     <style>
         * {
             margin: 0;
@@ -254,20 +254,6 @@
             margin-bottom: 25px;
         }
 
-        .error-btn {
-            display: inline-block;
-            background: #dc2626;
-            color: white;
-            padding: 12px 24px;
-            border-radius: 8px;
-            text-decoration: none;
-            font-weight: bold;
-        }
-
-        .error-btn:hover {
-            background: #b91c1c;
-        }
-
         /* Success States */
         .success-container {
             background: white;
@@ -426,7 +412,6 @@
         <div class="error-icon">⚠️</div>
         <h2>Oops!</h2>
         <p id="errorMessage">Something went wrong</p>
-        <a href="/" class="error-btn">Go to Homepage</a>
     </div>
 
     <!-- Main Response Page -->
@@ -493,7 +478,7 @@
         </div>
 
         <div class="footer">
-            © PlasmoBlood Sync - Saving lives, one donation at a time ❤️
+            © PlasmoBlood Sync - Saving lives ❤️
         </div>
     </div>
 
@@ -546,7 +531,7 @@
     </div>
 
     <script>
-        // Get URL parameters (passed from Flask template)
+        // Get URL parameters (Jinja2 template variables from Flask)
         const requestId = "{{ request_id }}";
         const donorId = "{{ donor_id }}";
 
@@ -585,16 +570,25 @@
         // Fetch request data
         async function fetchRequestData() {
             try {
+                // Validate IDs
                 if (!requestId || !donorId || requestId === "" || donorId === "") {
                     showError('Invalid or missing request information');
                     return;
                 }
 
+                console.log('Fetching data for:', requestId, donorId);
+
                 const response = await fetch(`/api/get_request_data/${requestId}/${donorId}`);
                 const data = await response.json();
 
+                console.log('Response:', data);
+
                 if (data.status === 'error') {
-                    showError(data.message);
+                    if (data.message === 'already_processed') {
+                        showError('This request has already been processed by another donor. Thank you for your willingness to help!');
+                    } else {
+                        showError(data.message);
+                    }
                     return;
                 }
 
@@ -618,7 +612,7 @@
 
             } catch (error) {
                 console.error('Error fetching data:', error);
-                showError('Failed to load request details. Please try again.');
+                showError('Failed to load request details. Please check your internet connection and try again.');
             }
         }
 
@@ -653,12 +647,13 @@
 
             } catch (error) {
                 console.error('Error submitting response:', error);
-                showError('Failed to submit response. Please try again.');
+                showError('Failed to submit response. Please check your internet connection and try again.');
             }
         }
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('Page loaded, fetching data...');
             fetchRequestData();
         });
     </script>

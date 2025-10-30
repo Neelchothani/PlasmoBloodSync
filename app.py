@@ -2528,12 +2528,27 @@ def donor_response_page(request_id, donor_id):
 # STANDALONE DONOR RESPONSE PAGE (for SMS)
 # ============================================
 
+# Replace these routes in your app.py
+
 @app.route("/respond/<request_id>/<donor_id>")
 def respond_page(request_id, donor_id):
     """
-    Standalone donor response page (works without login)
-    Used for SMS links - mobile optimized
+    Standalone donor response page (NO LOGIN REQUIRED)
+    Works independently from the main website
     """
+    # Validate IDs exist
+    if not request_id or not donor_id:
+        return """
+        <html>
+        <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+        <body style="font-family: Arial; text-align: center; padding: 50px; background: #f5f5f5;">
+            <h2>❌ Invalid Link</h2>
+            <p>This donation link is invalid or incomplete.</p>
+        </body>
+        </html>
+        """, 400
+    
+    # Pass IDs to template - THIS IS CRITICAL
     return render_template("donor_response.html", 
                          request_id=request_id, 
                          donor_id=donor_id)
@@ -2542,15 +2557,39 @@ def respond_page(request_id, donor_id):
 @app.route("/api/get_request_data/<request_id>/<donor_id>")
 def api_get_request_data(request_id, donor_id):
     """
-    API endpoint to fetch request and donor data for response page
-    Returns JSON with all needed information
+    Public API endpoint - NO LOGIN REQUIRED
+    Returns JSON (not HTML!)
     """
     try:
-        # Fetch request from Firestore
-        request_ref = db.collection(get_request_collection()).document(request_id)
-        request_doc = request_ref.get()
+        print(f"📡 API call: request={request_id}, donor={donor_id}")
         
-        if not request_doc.exists:
+        # Validate inputs
+        if not request_id or not donor_id:
+            return jsonify({
+                "status": "error",
+                "message": "Missing request ID or donor ID"
+            }), 400
+        
+        # Try both blood and plasma collections
+        request_doc = None
+        collection_used = None
+        
+        for collection_name in ["blood_requests", "plasma_requests"]:
+            try:
+                req_ref = db.collection(collection_name).document(request_id)
+                req_doc = req_ref.get()
+                
+                if req_doc.exists:
+                    request_doc = req_doc
+                    collection_used = collection_name
+                    print(f"✅ Found request in {collection_name}")
+                    break
+            except Exception as e:
+                print(f"⚠️ Error checking {collection_name}: {e}")
+                continue
+        
+        if not request_doc or not request_doc.exists:
+            print(f"❌ Request {request_id} not found in any collection")
             return jsonify({
                 "status": "error",
                 "message": "Request not found"
@@ -2559,35 +2598,55 @@ def api_get_request_data(request_id, donor_id):
         request_data = request_doc.to_dict()
         
         # Check if already responded
-        if request_data.get("status") in ["accepted", "rejected"]:
+        current_status = request_data.get("status", "pending")
+        if current_status in ["accepted", "rejected"]:
+            print(f"⚠️ Request already {current_status}")
             return jsonify({
                 "status": "error",
-                "message": "This request has already been processed"
+                "message": "already_processed",
+                "detail": "This request has already been processed"
             }), 400
         
-        # Fetch donor from Firestore
-        donor_ref = db.collection("users").document(donor_id)
-        donor_doc = donor_ref.get()
-        
-        if not donor_doc.exists:
+        # Fetch donor
+        try:
+            donor_ref = db.collection("users").document(donor_id)
+            donor_doc = donor_ref.get()
+            
+            if not donor_doc.exists:
+                print(f"❌ Donor {donor_id} not found")
+                return jsonify({
+                    "status": "error",
+                    "message": "Donor not found"
+                }), 404
+            
+            donor_data = donor_doc.to_dict()
+            print(f"✅ Found donor: {donor_data.get('name')}")
+            
+        except Exception as e:
+            print(f"❌ Error fetching donor: {e}")
             return jsonify({
                 "status": "error",
-                "message": "Donor not found"
-            }), 404
+                "message": "Error fetching donor data"
+            }), 500
         
-        donor_data = donor_doc.to_dict()
-        
-        # Calculate distance if donor has location
+        # Calculate distance
         distance_str = "nearby"
-        if donor_data.get("lat") and donor_data.get("lng"):
-            if request_data.get("lat") and request_data.get("lng"):
+        try:
+            donor_lat = donor_data.get("lat")
+            donor_lng = donor_data.get("lng")
+            request_lat = request_data.get("lat")
+            request_lng = request_data.get("lng")
+            
+            if all([donor_lat, donor_lng, request_lat, request_lng]):
                 distance_km = geodesic(
-                    (request_data["lat"], request_data["lng"]),
-                    (donor_data["lat"], donor_data["lng"])
+                    (request_lat, request_lng),
+                    (donor_lat, donor_lng)
                 ).km
                 distance_str = f"{distance_km:.1f} km"
+        except Exception as e:
+            print(f"⚠️ Distance calculation failed: {e}")
         
-        # Prepare response data
+        # Build response (MUST be valid JSON!)
         response_data = {
             "status": "success",
             "request": {
@@ -2596,27 +2655,251 @@ def api_get_request_data(request_id, donor_id):
                 "blood_group": request_data.get("blood_group", "N/A"),
                 "details": request_data.get("details", ""),
                 "phone": request_data.get("phone", "N/A"),
-                "distance": distance_str,
-                "created_at": str(request_data.get("created_at", ""))
+                "distance": distance_str
             },
             "donor": {
                 "id": donor_id,
                 "name": donor_data.get("name", "Donor"),
-                "email": donor_data.get("email", ""),
-                "blood_group": donor_data.get("blood_group", "Unknown")
+                "email": donor_data.get("email", "")
             }
         }
         
+        print(f"✅ Sending response: {response_data}")
         return jsonify(response_data)
         
     except Exception as e:
-        print(f"❌ Error in api_get_request_data: {str(e)}")
+        print(f"❌ Unexpected error in api_get_request_data: {str(e)}")
         import traceback
         traceback.print_exc()
         return jsonify({
             "status": "error",
-            "message": str(e)
+            "message": "Server error occurred"
         }), 500
+
+
+@app.route("/donor_response/<request_id>/<donor_id>/<action>")
+def donor_response(request_id, donor_id, action):
+    """
+    Handle donor accept/reject (NO LOGIN REQUIRED)
+    Returns HTML (not JSON!)
+    """
+    try:
+        print(f"🔔 Donor response: {action} from {donor_id} for {request_id}")
+        
+        # Validate action
+        if action not in ["accept", "reject"]:
+            return """
+            <html>
+            <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+            <body style="font-family: Arial; text-align: center; padding: 50px;">
+                <h2>❌ Invalid Action</h2>
+                <p>Action must be 'accept' or 'reject'</p>
+            </body>
+            </html>
+            """, 400
+        
+        # Find request in both collections
+        request_ref = None
+        request_doc = None
+        
+        for collection_name in ["blood_requests", "plasma_requests"]:
+            req_ref = db.collection(collection_name).document(request_id)
+            req_doc = req_ref.get()
+            
+            if req_doc.exists:
+                request_ref = req_ref
+                request_doc = req_doc
+                break
+
+        if not request_doc or not request_doc.exists:
+            return """
+            <html>
+            <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+            <style>
+                body { font-family: Arial; text-align: center; padding: 50px; background: #f5f5f5; }
+                .error { background: white; padding: 40px; border-radius: 12px; max-width: 500px; margin: 0 auto; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+                .icon { font-size: 64px; margin-bottom: 20px; }
+            </style>
+            </head>
+            <body>
+                <div class="error">
+                    <div class="icon">❌</div>
+                    <h2>Request Not Found</h2>
+                    <p>This donation request may have been cancelled.</p>
+                </div>
+            </body>
+            </html>
+            """, 404
+
+        request_data = request_doc.to_dict()
+        
+        # Check if already processed
+        if request_data.get("status") in ["accepted", "rejected"]:
+            return """
+            <html>
+            <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+            <style>
+                body { font-family: Arial; text-align: center; padding: 50px; background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+                .info { background: white; padding: 40px; border-radius: 16px; max-width: 500px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
+                .icon { font-size: 72px; margin-bottom: 20px; }
+            </style>
+            </head>
+            <body>
+                <div class="info">
+                    <div class="icon">⏱️</div>
+                    <h2>Already Processed</h2>
+                    <p style="font-size: 16px;">This request has already been handled.</p>
+                    <p>Thank you for your willingness to help!</p>
+                </div>
+            </body>
+            </html>
+            """, 200
+
+        # Fetch donor
+        donor_ref = db.collection("users").document(donor_id)
+        donor_doc = donor_ref.get()
+
+        if not donor_doc.exists:
+            return """
+            <html>
+            <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+            <body style="font-family: Arial; text-align: center; padding: 50px;">
+                <h2>❌ Donor Not Found</h2>
+            </body>
+            </html>
+            """, 404
+
+        donor_data = donor_doc.to_dict()
+        patient_email = request_data.get("email") or SENDGRID_FROM_EMAIL
+        
+        FEEDBACK_URL = "https://docs.google.com/forms/d/e/1FAIpQLSfiyiQmI3xUZc1zHrUGHJQsYOVB_JGAox4mDMnDYUHA2xxZYQ/viewform"
+
+        if action == "accept":
+            # Update request
+            request_ref.update({
+                "status": "accepted",
+                "accepted_by": donor_id,
+                "accepted_donor": {
+                    "id": donor_id,
+                    "name": donor_data.get("name"),
+                    "email": donor_data.get("email"),
+                    "phone": donor_data.get("phone"),
+                    "blood_group": donor_data.get("blood_group", "Unknown")
+                },
+                "accepted_at": datetime.utcnow()
+            })
+            print(f"✅ Request accepted by {donor_data.get('name')}")
+
+            # Send emails (threaded)
+            donor_html = f"""
+            <html>
+            <body style="font-family: Arial; line-height: 1.6;">
+                <div style="max-width: 600px; margin: 0 auto;">
+                    <div style="background: #10b981; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+                        <h2>✅ Thank You!</h2>
+                    </div>
+                    <div style="background: #f9f9f9; padding: 20px;">
+                        <p>Hi <strong>{donor_data.get('name')}</strong>,</p>
+                        <p>Your response has been recorded. The patient has been notified.</p>
+                        <div style="background: white; padding: 15px; margin: 15px 0; border-left: 4px solid #10b981;">
+                            <div><strong>Patient:</strong> {request_data.get('patient_name')}</div>
+                            <div><strong>Blood Group:</strong> {request_data.get('blood_group')}</div>
+                            <div><strong>Contact:</strong> {request_data.get('phone', 'N/A')}</div>
+                        </div>
+                        <p>Please coordinate with the patient. Your help saves lives! ❤️</p>
+                        <div style="text-align: center; margin-top: 20px;">
+                            <a href="{FEEDBACK_URL}" style="background: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">📝 Give Feedback</a>
+                        </div>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """
+            send_email_threaded(donor_data["email"], "✅ Donation Confirmed", donor_html)
+
+            notify_html = f"""
+            <html>
+            <body style="font-family: Arial;">
+                <div style="max-width: 600px; margin: 0 auto;">
+                    <div style="background: #10b981; color: white; padding: 20px; text-align: center;">
+                        <h2>🎉 Donor Found!</h2>
+                    </div>
+                    <div style="background: #f9f9f9; padding: 20px;">
+                        <p>A donor has accepted your request!</p>
+                        <div style="background: white; padding: 15px; border-left: 4px solid #10b981;">
+                            <div><strong>Name:</strong> {donor_data.get('name', 'N/A')}</div>
+                            <div><strong>Phone:</strong> {donor_data.get('phone', 'N/A')}</div>
+                        </div>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """
+            send_email_threaded(patient_email, f"🩸 Donor Found: {donor_data.get('name')}", notify_html)
+
+            return f"""
+            <html>
+            <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+            <style>
+                body {{ font-family: Arial; text-align: center; padding: 20px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; }}
+                .success {{ background: white; padding: 40px; border-radius: 16px; max-width: 500px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }}
+                .icon {{ font-size: 72px; margin-bottom: 20px; }}
+                .btn {{ display: inline-block; margin-top: 20px; background: #10b981; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; }}
+            </style>
+            </head>
+            <body>
+                <div class="success">
+                    <div class="icon">✅</div>
+                    <h1 style="color: #10b981;">Thank You!</h1>
+                    <p style="font-size: 18px;">You've accepted the donation request.</p>
+                    <p>A confirmation email has been sent.</p>
+                    <a href="{FEEDBACK_URL}" class="btn">📝 Give Feedback</a>
+                </div>
+            </body>
+            </html>
+            """
+
+        elif action == "reject":
+            request_ref.update({
+                "status": "rejected",
+                "rejected_by": donor_id,
+                "rejected_at": datetime.utcnow()
+            })
+            print(f"❌ Request rejected by {donor_data.get('name')}")
+            
+            return """
+            <html>
+            <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+            <style>
+                body { font-family: Arial; text-align: center; padding: 20px; background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+                .info { background: white; padding: 40px; border-radius: 16px; max-width: 500px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
+                .icon { font-size: 72px; margin-bottom: 20px; }
+            </style>
+            </head>
+            <body>
+                <div class="info">
+                    <div class="icon">❌</div>
+                    <h1 style="color: #6b7280;">Request Declined</h1>
+                    <p style="font-size: 18px;">You've declined this donation request.</p>
+                    <p>We'll notify other available donors.</p>
+                </div>
+            </body>
+            </html>
+            """
+
+    except Exception as e:
+        print(f"❌ Error in donor_response: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return f"""
+        <html>
+        <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+        <body style="font-family: Arial; text-align: center; padding: 50px;">
+            <h2>❌ Error Occurred</h2>
+            <p>Please try again or contact support.</p>
+        </body>
+        </html>
+        """, 500
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
