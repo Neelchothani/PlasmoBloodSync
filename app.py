@@ -2529,14 +2529,10 @@ def donor_response_page(request_id, donor_id):
 # ============================================
 
 # Replace these routes in your app.py
-
+# Also update this route to use url_for with the new endpoint name:
 @app.route("/respond/<request_id>/<donor_id>")
 def respond_page(request_id, donor_id):
-    """
-    Standalone donor response page (NO LOGIN REQUIRED)
-    Works independently from the main website
-    """
-    # Validate IDs exist
+    """Standalone donor response page (NO LOGIN REQUIRED)"""
     if not request_id or not donor_id:
         return """
         <html>
@@ -2548,11 +2544,9 @@ def respond_page(request_id, donor_id):
         </html>
         """, 400
     
-    # Pass IDs to template - THIS IS CRITICAL
     return render_template("donor_response.html", 
                          request_id=request_id, 
                          donor_id=donor_id)
-
 
 @app.route("/api/get_request_data/<request_id>/<donor_id>")
 def api_get_request_data(request_id, donor_id):
@@ -2678,11 +2672,8 @@ def api_get_request_data(request_id, donor_id):
 
 
 @app.route("/donor_response/<request_id>/<donor_id>/<action>")
-def donor_response(request_id, donor_id, action):
-    """
-    Handle donor accept/reject (NO LOGIN REQUIRED)
-    Returns HTML (not JSON!)
-    """
+def handle_donor_response(request_id, donor_id, action):  # ✅ Changed function name
+    """Handle donor accept/reject (NO LOGIN REQUIRED)"""
     try:
         print(f"🔔 Donor response: {action} from {donor_id} for {request_id}")
         
@@ -2888,7 +2879,7 @@ def donor_response(request_id, donor_id, action):
             """
 
     except Exception as e:
-        print(f"❌ Error in donor_response: {str(e)}")
+        print(f"❌ Error in handle_donor_response: {str(e)}")
         import traceback
         traceback.print_exc()
         return f"""
